@@ -43,3 +43,8 @@ Proyecto automatizado para la práctica de **Integración de Sistemas en AWS** s
 
 ## Nota de seguridad
 No subas credenciales reales al repositorio. Usa variables de entorno y secretos de Jenkins/GitHub Actions.
+
+## Nota de cumplimiento de rúbrica
+Si se aplica interpretación estricta del enunciado, el despliegue debe ejecutarse por cuenta individual de alumno (5 cuentas), no solo en cuentas centralizadas. Ver plan operativo en `documentacion/entrega-final-dt/PLAN_EJECUCION_5_CUENTAS_ESTRICTO.md`.
+
+Plantillas CloudFormation estrictas por alumno disponibles en `cloudformation/strict-5/`.

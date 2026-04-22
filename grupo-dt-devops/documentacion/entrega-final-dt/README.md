@@ -6,6 +6,7 @@ Esta carpeta contiene la documentación final de la práctica en formato DevOps,
 - `MEMORIA_TECNICA_DT.md` → memoria técnica completa para entregar.
 - `CHECKLIST_EVIDENCIAS_DT.md` → lista de evidencias y capturas que debéis adjuntar.
 - `GUION_DEFENSA_DT.md` → guion breve para defensa oral en clase.
+- `PLAN_EJECUCION_5_CUENTAS_ESTRICTO.md` → plan operativo estricto por rúbrica (despliegue por cuenta individual).
 
 ## Equipo
 - Alejandro (Alumno A)

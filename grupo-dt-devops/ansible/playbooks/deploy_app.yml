@@ -3,8 +3,6 @@
   hosts: nginx
   become: true
   gather_facts: false
-  vars:
-    ufv_backend_hosts: "{{ groups['linux_ufv'] | map('extract', hostvars, 'private_ip') | select('defined') | list }}"
   tasks:
     - name: Instalar nginx en personal
       ansible.builtin.package:
@@ -22,6 +20,39 @@
         src: ../../ufv-app/public/
         dest: /var/www/public/
         mode: preserve
+
+    - name: Calcular backends por modulo para LB
+      ansible.builtin.set_fact:
+        profesores_backend_hosts: >-
+          {{
+            groups['linux_ufv']
+            | select('match', '^DT-C-Web')
+            | map('extract', hostvars, 'private_ip')
+            | select('defined')
+            | list
+          }}
+        alumnos_backend_hosts: >-
+          {{
+            groups['linux_ufv']
+            | select('match', '^DT-D-Web')
+            | map('extract', hostvars, 'private_ip')
+            | select('defined')
+            | list
+          }}
+        practicas_backend_hosts: >-
+          {{
+            groups['linux_ufv']
+            | select('match', '^DT-E-Web')
+            | map('extract', hostvars, 'private_ip')
+            | select('defined')
+            | list
+          }}
+
+    - name: Fallback de backends para topologia antigua de 3 webs
+      ansible.builtin.set_fact:
+        profesores_backend_hosts: "{{ profesores_backend_hosts if (profesores_backend_hosts | length) > 0 else (groups['linux_ufv'] | select('match', '^DT-UFV-Web01$') | map('extract', hostvars, 'private_ip') | select('defined') | list) }}"
+        alumnos_backend_hosts: "{{ alumnos_backend_hosts if (alumnos_backend_hosts | length) > 0 else (groups['linux_ufv'] | select('match', '^DT-UFV-Web02$') | map('extract', hostvars, 'private_ip') | select('defined') | list) }}"
+        practicas_backend_hosts: "{{ practicas_backend_hosts if (practicas_backend_hosts | length) > 0 else (groups['linux_ufv'] | select('match', '^DT-UFV-Web03$') | map('extract', hostvars, 'private_ip') | select('defined') | list) }}"
 
     - name: Renderizar configuracion Nginx LB
       ansible.builtin.template:
@@ -235,7 +266,13 @@
     - name: Seleccionar script Node por web server
       ansible.builtin.set_fact:
         ufv_node_script: >-
-          {% if 'Web01' in inventory_hostname %}
+          {% if 'DT-C-' in inventory_hostname %}
+          profesores.js
+          {% elif 'DT-D-' in inventory_hostname %}
+          alumnos.js
+          {% elif 'DT-E-' in inventory_hostname %}
+          practicas.js
+          {% elif 'Web01' in inventory_hostname %}
           profesores.js
           {% elif 'Web02' in inventory_hostname %}
           alumnos.js

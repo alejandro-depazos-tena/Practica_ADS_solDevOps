@@ -1,0 +1,308 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DT Strict 5 Accounts - Alumno A (AD + Windows Client)
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.10.0.0/16
+  PublicSubnetCidr:
+    Type: String
+    Default: 10.10.1.0/24
+  PrivateSubnetCidr:
+    Type: String
+    Default: 10.10.11.0/24
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+  AmiWindows:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0349104b138bf332c
+  AdminCidr:
+    Type: String
+    Description: CIDR administrativo para RDP/WinRM (ejemplo 203.0.113.10/32)
+  LinuxVpcCidrs:
+    Type: CommaDelimitedList
+    Default: 10.20.0.0/16,10.30.0.0/16,10.40.0.0/16,10.50.0.0/16
+    Description: CIDRs VPC de B/C/D/E para DNS/Kerberos/NTP
+  BudgetLimitUSD:
+    Type: Number
+    Default: 10
+  BudgetEmail:
+    Type: String
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: DT-A-vpc-ad
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachIgw:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetCidr
+      MapPublicIpOnLaunch: false
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIgw
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet
+
+  ADSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DT A SG AD
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref AdminCidr
+        - IpProtocol: tcp
+          FromPort: 5985
+          ToPort: 5986
+          CidrIp: !Ref AdminCidr
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: tcp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: udp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: udp
+          FromPort: 67
+          ToPort: 68
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [0, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [0, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Select [0, !Ref LinuxVpcCidrs]
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [1, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [1, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Select [1, !Ref LinuxVpcCidrs]
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [2, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [2, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Select [2, !Ref LinuxVpcCidrs]
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [3, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Select [3, !Ref LinuxVpcCidrs]
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Select [3, !Ref LinuxVpcCidrs]
+      Tags:
+        - Key: Name
+          Value: DT-A-sg-ad
+
+  WindowsClientSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DT A SG Windows Client
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref AdminCidr
+        - IpProtocol: tcp
+          FromPort: 5985
+          ToPort: 5986
+          CidrIp: !Ref AdminCidr
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref VpcCidr
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: DT-A-sg-win-client
+
+  ADInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiWindows
+      InstanceType: t3.medium
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref ADSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: DT-A-DC01
+
+  WindowsClientInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiWindows
+      InstanceType: t3.medium
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref WindowsClientSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: DT-A-WINCLIENT01
+
+  ADEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  ADEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ADEip.AllocationId
+      InstanceId: !Ref ADInstance
+
+  WinClientEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  WinClientEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt WinClientEip.AllocationId
+      InstanceId: !Ref WindowsClientInstance
+
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: DT-A-Mensual
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref BudgetLimitUSD
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 85
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetEmail
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+  VpcCidr:
+    Value: !Ref VpcCidr
+  PublicSubnetId:
+    Value: !Ref PublicSubnet
+  RouteTableId:
+    Value: !Ref PublicRouteTable
+  PrivateRouteTableId:
+    Value: !Ref PrivateRouteTable
+  ADInstanceId:
+    Value: !Ref ADInstance
+  WindowsClientInstanceId:
+    Value: !Ref WindowsClientInstance
+  ADEip:
+    Value: !Ref ADEip
+  WinClientEip:
+    Value: !Ref WinClientEip

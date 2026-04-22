@@ -1,17 +1,19 @@
-{% set web01_ip = ufv_backend_hosts[0] | default('127.0.0.1') %}
-{% set web02_ip = ufv_backend_hosts[1] | default(web01_ip) %}
-{% set web03_ip = ufv_backend_hosts[2] | default(web02_ip) %}
-
 upstream ufv_profesores {
-    server {{ web01_ip }}:80;
+{% for ip in profesores_backend_hosts | default(['127.0.0.1']) %}
+    server {{ ip }}:80;
+{% endfor %}
 }
 
 upstream ufv_alumnos {
-    server {{ web02_ip }}:80;
+{% for ip in alumnos_backend_hosts | default(['127.0.0.1']) %}
+    server {{ ip }}:80;
+{% endfor %}
 }
 
 upstream ufv_practicas {
-    server {{ web03_ip }}:80;
+{% for ip in practicas_backend_hosts | default(['127.0.0.1']) %}
+    server {{ ip }}:80;
+{% endfor %}
 }
 
 server {
