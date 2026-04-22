@@ -1,13 +1,20 @@
 ---
 project_group: DT
 ad_domain: corp.ufv.local
-linux_ssh_user: ansible
-linux_ssh_password: Airbusds2026
-windows_user: ansible
-windows_password: Airbusds2026
+linux_ssh_user: "{{ lookup('env', 'ANSIBLE_SSH_USER') | default('ansible', true) }}"
+linux_ssh_password: "{{ lookup('env', 'ANSIBLE_SSH_PASSWORD') | default('', true) }}"
+windows_user: "{{ lookup('env', 'ANSIBLE_WIN_USER') | default('ansible', true) }}"
+windows_password: "{{ lookup('env', 'ANSIBLE_WIN_PASSWORD') | default('', true) }}"
 venv_path: /opt/venv/app
 node_service_name: ufvNodeService
-postgres_host: 10.0.1.10
-postgres_db: academico
-postgres_user: backend
-postgres_password: ContraseñaSegura123
+postgres_host: "{{ lookup('env', 'POSTGRES_HOST') | default('10.0.1.10', true) }}"
+postgres_db: "{{ lookup('env', 'POSTGRES_DB') | default('academico', true) }}"
+postgres_read_user: "{{ lookup('env', 'POSTGRES_READ_USER') | default('backend_read', true) }}"
+postgres_read_password: "{{ lookup('env', 'POSTGRES_READ_PASSWORD') | default('', true) }}"
+postgres_write_user: "{{ lookup('env', 'POSTGRES_WRITE_USER') | default('backend_write', true) }}"
+postgres_write_password: "{{ lookup('env', 'POSTGRES_WRITE_PASSWORD') | default('', true) }}"
+ad_safe_mode_password: "{{ lookup('env', 'AD_SAFE_MODE_PASSWORD') | default('', true) }}"
+ad_default_user_password: "{{ lookup('env', 'AD_DEFAULT_USER_PASSWORD') | default('', true) }}"
+domain_join_user: "{{ lookup('env', 'AD_DOMAIN_JOIN_USER') | default('CORP\\Administrator', true) }}"
+domain_join_password: "{{ lookup('env', 'AD_DOMAIN_JOIN_PASSWORD') | default('', true) }}"
+s3_bucket_name: "{{ lookup('env', 'S3_BUCKET_NAME') | default('', true) }}"

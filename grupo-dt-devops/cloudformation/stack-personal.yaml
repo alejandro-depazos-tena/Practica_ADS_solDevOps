@@ -143,6 +143,30 @@ Resources:
           FromPort: 67
           ToPort: 68
           CidrIp: !Ref VpcCidr
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref UfvVpcCidr
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref UfvVpcCidr
+        - IpProtocol: tcp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref UfvVpcCidr
+        - IpProtocol: udp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref UfvVpcCidr
+        - IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref UfvVpcCidr
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Ref UfvVpcCidr
       Tags:
         - Key: Name
           Value: DT-sg-ad

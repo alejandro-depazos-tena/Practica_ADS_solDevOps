@@ -4,7 +4,7 @@
   become: true
   gather_facts: false
   vars:
-    ad_dns_ip: "{{ hostvars[groups['windows_personal'][0]].ansible_host | default('10.0.1.12') }}"
+    ad_dns_ip: "{{ hostvars[groups['windows_personal'][0]].private_ip | default(hostvars[groups['windows_personal'][0]].ansible_host) | default('10.0.1.12') }}"
   tasks:
     - name: Instalar chrony
       ansible.builtin.package:

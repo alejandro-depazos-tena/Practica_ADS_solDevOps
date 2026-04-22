@@ -563,7 +563,7 @@ chmod +x /usr/local/ufv/ufv-infra/ansible/inventory/aws_inventory.sh
 
 ```bash
 cd /usr/local/ufv/ufv-infra
-JENKINS_USER=admin JENKINS_PASS=Airbusds2026 ./scripts/setup-all-jobs.sh
+JENKINS_USER=admin JENKINS_TOKEN=<TOKEN_JENKINS> ./scripts/setup-all-jobs.sh
 ```
 
 ---
@@ -656,8 +656,8 @@ El script `ansible/inventory/aws_inventory.sh` consulta AWS en tiempo real usand
 | `postgres` | 10.0.1.10 | IP pública |
 
 **Credenciales Ansible:**
-- **Linux:** usuario `ansible`, password `Airbusds2026`, sudo sin contraseña
-- **Windows:** usuario `ansible`, password `Airbusds2026`, WinRM básico puerto 5985
+- **Linux:** usuario definido en `ANSIBLE_SSH_USER`, password en `ANSIBLE_SSH_PASSWORD`
+- **Windows:** usuario definido en `ANSIBLE_WIN_USER`, password en `ANSIBLE_WIN_PASSWORD`, WinRM básico puerto 5985
 
 ---
 
@@ -665,8 +665,9 @@ El script `ansible/inventory/aws_inventory.sh` consulta AWS en tiempo real usand
 
 | Rol | Usuario | Password | Base de datos | Uso |
 |---|---|---|---|---|
-| Aplicación | `backend` | `ContraseñaSegura123` | `academico` | Conexión desde Node.js |
-| Administración | `postgres` | `postgres123` | `*` | Solo mantenimiento |
+| Aplicación (lectura) | `backend_read` | `POSTGRES_READ_PASSWORD` | `academico` | Consultas API |
+| Aplicación (escritura) | `backend_write` | `POSTGRES_WRITE_PASSWORD` | `academico` | Operaciones de escritura |
+| Administración | `postgres` | gestionado fuera de repo | `*` | Solo mantenimiento |
 
 **Esquema `academico`:**
 ```
@@ -680,10 +681,10 @@ academico
 
 ```bash
 # Conectar como aplicación
-psql -h 10.0.1.10 -U backend -d academico
+psql -h 10.0.1.10 -U backend_read -d academico
 
 # Listar tablas
-psql -h 10.0.1.10 -U backend -d academico -c "\dt academico.*"
+psql -h 10.0.1.10 -U backend_read -d academico -c "\dt academico.*"
 ```
 
 ---
@@ -748,7 +749,7 @@ sudo cat /var/log/userdata.log
 ### Ansible no conecta a Linux
 ```bash
 ssh -o StrictHostKeyChecking=no ansible@<IP_PUBLICA>
-# password: Airbusds2026
+# password: usar ANSIBLE_SSH_PASSWORD
 ```
 
 ### Ansible no conecta a Windows (WinRM)

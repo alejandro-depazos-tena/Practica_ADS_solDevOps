@@ -1,47 +1,51 @@
 ---
 - name: Configurar Nginx en LB personal
-  hosts: linux_personal
+  hosts: nginx
   become: true
   gather_facts: false
+  vars:
+    ufv_backend_hosts: "{{ groups['linux_ufv'] | map('extract', hostvars, 'private_ip') | select('defined') | list }}"
   tasks:
     - name: Instalar nginx en personal
       ansible.builtin.package:
         name: nginx
         state: present
-      when: "'postgres' not in group_names"
 
     - name: Crear directorio de web publica
       ansible.builtin.file:
         path: /var/www/public
         state: directory
         mode: '0755'
-      when: "'postgres' not in group_names"
 
     - name: Copiar contenido estatico
       ansible.builtin.copy:
         src: ../../ufv-app/public/
         dest: /var/www/public/
         mode: preserve
-      when: "'postgres' not in group_names"
 
-    - name: Copiar configuracion Nginx LB
-      ansible.builtin.copy:
-        src: ../../ufv-app/nginx/dt-personal-nginx.conf
+    - name: Renderizar configuracion Nginx LB
+      ansible.builtin.template:
+        src: ../templates/dt-personal-nginx.conf.j2
         dest: /etc/nginx/sites-available/default
         mode: '0644'
-      when: "'postgres' not in group_names"
 
     - name: Reiniciar nginx en LB
       ansible.builtin.service:
         name: nginx
         state: restarted
-      when: "'postgres' not in group_names"
 
 - name: Configurar PostgreSQL y backup
   hosts: postgres
   become: true
   gather_facts: false
   tasks:
+    - name: Validar secretos obligatorios de PostgreSQL
+      ansible.builtin.assert:
+        that:
+          - postgres_read_password | length > 0
+          - postgres_write_password | length > 0
+        fail_msg: "Define POSTGRES_READ_PASSWORD y POSTGRES_WRITE_PASSWORD antes de desplegar."
+
     - name: Instalar PostgreSQL
       ansible.builtin.package:
         name: postgresql
@@ -53,11 +57,14 @@
         enabled: true
         state: started
 
-    - name: Crear base de datos y usuario de aplicacion
+    - name: Crear base de datos y roles por funcionalidad
       ansible.builtin.shell: |
         sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='academico'" | grep -q 1 || sudo -u postgres createdb academico
-        sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='backend'" | grep -q 1 || sudo -u postgres psql -c "CREATE USER backend WITH PASSWORD 'ContraseñaSegura123';"
-        sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE academico TO backend;"
+        sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='{{ postgres_read_user }}'" | grep -q 1 || sudo -u postgres psql -c "CREATE USER {{ postgres_read_user }} WITH PASSWORD '{{ postgres_read_password }}';"
+        sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='{{ postgres_write_user }}'" | grep -q 1 || sudo -u postgres psql -c "CREATE USER {{ postgres_write_user }} WITH PASSWORD '{{ postgres_write_password }}';"
+        sudo -u postgres psql -c "ALTER USER {{ postgres_read_user }} WITH PASSWORD '{{ postgres_read_password }}';"
+        sudo -u postgres psql -c "ALTER USER {{ postgres_write_user }} WITH PASSWORD '{{ postgres_write_password }}';"
+        sudo -u postgres psql -c "GRANT CONNECT ON DATABASE academico TO {{ postgres_read_user }}, {{ postgres_write_user }};"
       args:
         executable: /bin/bash
 
@@ -72,6 +79,11 @@
           creditos INTEGER DEFAULT 6,
           fecha_creacion TIMESTAMP DEFAULT NOW()
         );
+        GRANT USAGE ON SCHEMA academico TO {{ postgres_read_user }}, {{ postgres_write_user }};
+        GRANT SELECT ON ALL TABLES IN SCHEMA academico TO {{ postgres_read_user }};
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA academico TO {{ postgres_write_user }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA academico GRANT SELECT ON TABLES TO {{ postgres_read_user }};
+        ALTER DEFAULT PRIVILEGES IN SCHEMA academico GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ postgres_write_user }};
         SQL
       args:
         executable: /bin/bash
@@ -86,6 +98,23 @@
           mkdir -p /var/backups/postgresql
           sudo -u postgres pg_dump academico > /var/backups/postgresql/academico_$(date +%F_%H%M%S).sql
 
+    - name: Crear script de restauracion
+      ansible.builtin.copy:
+        dest: /usr/local/bin/restore_latest_academico.sh
+        mode: '0755'
+        content: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          latest_dump=$(ls -1t /var/backups/postgresql/academico_*.sql 2>/dev/null | head -n 1)
+          if [ -z "$latest_dump" ]; then
+            echo "No hay backups disponibles en /var/backups/postgresql"
+            exit 1
+          fi
+          sudo -u postgres dropdb --if-exists academico_restore
+          sudo -u postgres createdb academico_restore
+          sudo -u postgres psql -d academico_restore -f "$latest_dump"
+          echo "Restauracion completada en academico_restore usando $latest_dump"
+
     - name: Programar backup diario
       ansible.builtin.cron:
         name: backup diario academico
@@ -98,6 +127,8 @@
   hosts: linux_ufv
   become: true
   gather_facts: false
+  vars:
+    postgres_private_ip: "{{ hostvars[groups['postgres'][0]].private_ip | default(postgres_host) }}"
   tasks:
     - name: Instalar paquetes base web
       ansible.builtin.package:
@@ -136,6 +167,18 @@
       args:
         chdir: /opt/ufv-node
 
+    - name: Crear fichero de entorno para servicio Node
+      ansible.builtin.copy:
+        dest: /etc/ufv-node.env
+        mode: '0600'
+        content: |
+          DB_HOST={{ postgres_private_ip }}
+          DB_NAME={{ postgres_db }}
+          DB_USER={{ postgres_read_user }}
+          DB_PASSWORD={{ postgres_read_password }}
+          S3_BUCKET_NAME={{ s3_bucket_name }}
+          NODE_ENV=production
+
     - name: Crear unit service node
       ansible.builtin.copy:
         dest: /etc/systemd/system/ufvNodeService.service
@@ -146,6 +189,7 @@
 
           [Service]
           Type=simple
+          EnvironmentFile=/etc/ufv-node.env
           WorkingDirectory=/opt/ufv-node
           ExecStart=/usr/bin/node /opt/ufv-node/profesores.js
           Restart=always

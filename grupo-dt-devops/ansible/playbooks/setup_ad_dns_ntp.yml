@@ -1,14 +1,25 @@
 ---
-- name: Configurar AD, DNS y NTP (base)
+- name: Configurar AD, DNS, DHCP, GPO y NTP
   hosts: windows_personal
   gather_facts: false
   vars:
-    ad_domain: corp.ufv.local
     ad_netbios: CORP
-    ad_safe_mode_password: Airbusds2026!
-    ad_default_user_password: Airbusds2026!
+    ad_ou_path: DC=corp,DC=ufv,DC=local
     ad_ou: OU=Alumnos,DC=corp,DC=ufv,DC=local
+    ad_network_id: 10.0.1.0
+    ad_subnet_mask: 255.255.255.0
+    ad_scope_start: 10.0.1.180
+    ad_scope_end: 10.0.1.220
+    ad_default_gateway: 10.0.1.1
+    ad_dns_ip: "{{ hostvars[groups['windows_personal'][0]].private_ip | default(hostvars[groups['windows_personal'][0]].ansible_host) }}"
   tasks:
+    - name: Validar secretos obligatorios para AD
+      ansible.builtin.assert:
+        that:
+          - ad_safe_mode_password | length > 0
+          - ad_default_user_password | length > 0
+        fail_msg: "Define AD_SAFE_MODE_PASSWORD y AD_DEFAULT_USER_PASSWORD antes de ejecutar este playbook."
+
     - name: Ensure AD-Domain-Services feature installed
       ansible.windows.win_feature:
         name: AD-Domain-Services
@@ -17,6 +28,11 @@
     - name: Ensure DNS feature installed
       ansible.windows.win_feature:
         name: DNS
+        state: present
+
+    - name: Ensure DHCP feature installed
+      ansible.windows.win_feature:
+        name: DHCP
         state: present
 
     - name: Ensure GPMC feature installed
@@ -45,10 +61,33 @@
       ansible.windows.win_reboot:
       when: "'DOMAIN_CREATED' in ad_promotion.stdout"
 
+    - name: Authorize DHCP server in AD
+      ansible.windows.win_shell: |
+        if (-not (Get-DhcpServerInDC -DnsName $env:COMPUTERNAME -ErrorAction SilentlyContinue)) {
+          Add-DhcpServerInDC -DnsName $env:COMPUTERNAME -IpAddress {{ ad_dns_ip }}
+          Write-Output "DHCP_AUTHORIZED"
+        } else {
+          Write-Output "DHCP_AUTH_ALREADY"
+        }
+      changed_when: "'DHCP_AUTHORIZED' in dhcp_auth.stdout"
+      register: dhcp_auth
+
+    - name: Ensure DHCP scope exists
+      ansible.windows.win_shell: |
+        if (-not (Get-DhcpServerv4Scope -ScopeId {{ ad_network_id }} -ErrorAction SilentlyContinue)) {
+          Add-DhcpServerv4Scope -Name "AlumnosScope" -StartRange {{ ad_scope_start }} -EndRange {{ ad_scope_end }} -SubnetMask {{ ad_subnet_mask }}
+          Set-DhcpServerv4OptionValue -ScopeId {{ ad_network_id }} -DnsServer {{ ad_dns_ip }} -Router {{ ad_default_gateway }} -DnsDomain {{ ad_domain }}
+          Write-Output "DHCP_SCOPE_CREATED"
+        } else {
+          Set-DhcpServerv4OptionValue -ScopeId {{ ad_network_id }} -DnsServer {{ ad_dns_ip }} -Router {{ ad_default_gateway }} -DnsDomain {{ ad_domain }}
+          Write-Output "DHCP_SCOPE_UPDATED"
+        }
+      changed_when: true
+
     - name: Ensure OU exists
       ansible.windows.win_shell: |
-        if (-not (Get-ADOrganizationalUnit -LDAPFilter "(ou=Alumnos)" -SearchBase "DC=corp,DC=ufv,DC=local" -ErrorAction SilentlyContinue)) {
-          New-ADOrganizationalUnit -Name "Alumnos" -Path "DC=corp,DC=ufv,DC=local"
+        if (-not (Get-ADOrganizationalUnit -LDAPFilter "(ou=Alumnos)" -SearchBase "{{ ad_ou_path }}" -ErrorAction SilentlyContinue)) {
+          New-ADOrganizationalUnit -Name "Alumnos" -Path "{{ ad_ou_path }}"
           Write-Output "OU_CREATED"
         }
       changed_when: true
@@ -96,8 +135,81 @@
         }
       changed_when: true
 
+    - name: Configurar GPO NoShutdown
+      ansible.windows.win_shell: |
+        Import-Module GroupPolicy
+        Set-GPRegistryValue -Name "GPO_NoShutdown" -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" -ValueName "NoClose" -Type DWord -Value 1
+        Write-Output "GPO_SHUTDOWN_CONFIGURED"
+      changed_when: true
+
+    - name: Crear script de logon para mapear unidad
+      ansible.windows.win_copy:
+        dest: C:\Windows\SYSVOL\sysvol\corp.ufv.local\scripts\map-drive.ps1
+        content: |
+          $drive = "Z:"
+          $share = "\\{{ ad_dns_ip }}\CompartidoAlumnos"
+          if (Get-PSDrive -Name "Z" -ErrorAction SilentlyContinue) {
+            Remove-PSDrive -Name "Z" -Force -ErrorAction SilentlyContinue
+          }
+          net use $drive /delete /yes | Out-Null
+          net use $drive $share /persistent:yes | Out-Null
+
+    - name: Configurar GPO MapDrive
+      ansible.windows.win_shell: |
+        Import-Module GroupPolicy
+        Set-GPRegistryValue -Name "GPO_MapDrive" -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" -ValueName "MapDriveDT" -Type String -Value "powershell.exe -ExecutionPolicy Bypass -File \\corp.ufv.local\SYSVOL\corp.ufv.local\scripts\map-drive.ps1"
+        Write-Output "GPO_MAPDRIVE_CONFIGURED"
+      changed_when: true
+
+    - name: Vincular GPOs a OU de alumnos
+      ansible.windows.win_shell: |
+        Import-Module GroupPolicy
+        New-GPLink -Name "GPO_NoShutdown" -Target "{{ ad_ou }}" -ErrorAction SilentlyContinue | Out-Null
+        New-GPLink -Name "GPO_MapDrive" -Target "{{ ad_ou }}" -ErrorAction SilentlyContinue | Out-Null
+        Write-Output "GPO_LINKED"
+      changed_when: true
+
     - name: Configurar servicio horario NTP (w32time)
       ansible.windows.win_shell: |
         w32tm /config /manualpeerlist:"pool.ntp.org" /syncfromflags:manual /update
         Restart-Service w32time
       changed_when: true
+
+- name: Unir cliente Windows al dominio
+  hosts: windows_clients
+  gather_facts: false
+  vars:
+    ad_dns_ip: "{{ hostvars[groups['windows_personal'][0]].private_ip | default(hostvars[groups['windows_personal'][0]].ansible_host) }}"
+  tasks:
+    - name: Validar credenciales de domain join
+      ansible.builtin.assert:
+        that:
+          - domain_join_user | length > 0
+          - domain_join_password | length > 0
+        fail_msg: "Define AD_DOMAIN_JOIN_USER y AD_DOMAIN_JOIN_PASSWORD para unir el cliente al dominio."
+
+    - name: Configurar DNS del cliente para usar AD
+      ansible.windows.win_shell: |
+        $adDns = "{{ ad_dns_ip }}"
+        Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | ForEach-Object {
+          Set-DnsClientServerAddress -InterfaceAlias $_.InterfaceAlias -ServerAddresses $adDns
+        }
+      changed_when: true
+
+    - name: Unir cliente al dominio si no esta unido
+      ansible.windows.win_shell: |
+        $partOfDomain = (Get-CimInstance Win32_ComputerSystem).PartOfDomain
+        if (-not $partOfDomain) {
+          $sec = ConvertTo-SecureString "{{ domain_join_password }}" -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential("{{ domain_join_user }}", $sec)
+          Add-Computer -DomainName "{{ ad_domain }}" -Credential $cred -Force
+          Write-Output "DOMAIN_JOINED"
+        } else {
+          Write-Output "ALREADY_JOINED"
+        }
+      register: domain_join_result
+      changed_when: "'DOMAIN_JOINED' in domain_join_result.stdout"
+
+    - name: Reboot client after domain join
+      ansible.windows.win_reboot:
+      when: "'DOMAIN_JOINED' in domain_join_result.stdout"

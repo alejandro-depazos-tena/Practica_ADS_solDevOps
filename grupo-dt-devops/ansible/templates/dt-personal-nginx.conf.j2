@@ -1,0 +1,38 @@
+upstream ufv_backend {
+{% for host_ip in ufv_backend_hosts %}
+    server {{ host_ip }}:3001;
+{% endfor %}
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    location /static/ {
+        alias /var/www/public/;
+    }
+
+    location / {
+        root /var/www/public;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /profesores/ {
+        proxy_pass http://ufv_backend/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /health/ {
+        proxy_pass http://ufv_backend/health;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /s3/ {
+        proxy_pass http://ufv_backend/s3/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

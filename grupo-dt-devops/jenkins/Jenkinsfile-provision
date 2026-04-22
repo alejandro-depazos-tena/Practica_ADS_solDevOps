@@ -3,6 +3,15 @@ pipeline {
 
   parameters {
     choice(name: 'PLAYBOOK', choices: ['update_inventory', 'setup_ad_dns_ntp', 'configure_dns_clients', 'setup_python_venv', 'deploy_app', 'all'], description: 'Playbook a ejecutar')
+    password(name: 'AD_SAFE_MODE_PASSWORD', defaultValue: '', description: 'Password DSRM para AD')
+    password(name: 'AD_DEFAULT_USER_PASSWORD', defaultValue: '', description: 'Password base usuarios AD de demo')
+    string(name: 'AD_DOMAIN_JOIN_USER', defaultValue: 'CORP\\Administrator', description: 'Usuario para unir cliente al dominio')
+    password(name: 'AD_DOMAIN_JOIN_PASSWORD', defaultValue: '', description: 'Password del usuario de join de dominio')
+    string(name: 'POSTGRES_READ_USER', defaultValue: 'backend_read', description: 'Usuario lectura PostgreSQL')
+    password(name: 'POSTGRES_READ_PASSWORD', defaultValue: '', description: 'Password usuario lectura PostgreSQL')
+    string(name: 'POSTGRES_WRITE_USER', defaultValue: 'backend_write', description: 'Usuario escritura PostgreSQL')
+    password(name: 'POSTGRES_WRITE_PASSWORD', defaultValue: '', description: 'Password usuario escritura PostgreSQL')
+    string(name: 'S3_BUCKET_NAME', defaultValue: '', description: 'Bucket S3 de la app (output AppStorageBucketName)')
   }
 
   stages {
@@ -10,6 +19,15 @@ pipeline {
       steps {
         sh '''
           set -e
+          export AD_SAFE_MODE_PASSWORD="$AD_SAFE_MODE_PASSWORD"
+          export AD_DEFAULT_USER_PASSWORD="$AD_DEFAULT_USER_PASSWORD"
+          export AD_DOMAIN_JOIN_USER="$AD_DOMAIN_JOIN_USER"
+          export AD_DOMAIN_JOIN_PASSWORD="$AD_DOMAIN_JOIN_PASSWORD"
+          export POSTGRES_READ_USER="$POSTGRES_READ_USER"
+          export POSTGRES_READ_PASSWORD="$POSTGRES_READ_PASSWORD"
+          export POSTGRES_WRITE_USER="$POSTGRES_WRITE_USER"
+          export POSTGRES_WRITE_PASSWORD="$POSTGRES_WRITE_PASSWORD"
+          export S3_BUCKET_NAME="$S3_BUCKET_NAME"
           INVENTORY=ansible/inventory/aws_inventory.sh
           if [ "$PLAYBOOK" = "all" ]; then
             ansible-playbook -i $INVENTORY ansible/playbooks/update_inventory.yml

@@ -114,12 +114,16 @@ Con Ansible:
 ### 5.2 Componente Windows
 - [x] AD DS y DNS automatizables (base)
 - [x] NTP para clientes Linux
-- [ ] Validación completa en entorno (OU, GPO y cliente unido con evidencias)
+- [x] DHCP configurado en AD (scope + opciones DNS/gateway)
+- [x] GPO NoShutdown y GPO MapDrive creadas, configuradas y vinculadas a OU
+- [x] Cliente Windows con automatización de domain join
 
 ### 5.3 Componentes Linux
 - [x] Nginx LB
 - [x] PostgreSQL + esquema base + backup programado
+- [x] Restauración automatizada en base de datos de recuperación
 - [x] Web servers con backend Node
+- [x] Integración S3 por IAM Role + endpoint API `/s3/objects`
 - [x] Despliegue/actualización automatizados
 
 ### 5.4 Criterio DevOps / punto extra
@@ -135,6 +139,7 @@ Con Ansible:
 - Principio de mínimo privilegio en IAM.
 - Secretos gestionados en Jenkins/GitHub, no en texto plano en pipeline.
 - Restricción de CIDR administrativo para SSH/RDP/WinRM.
+- Web servers UFV accesibles desde la VPC personal (LB), sin exposición HTTP directa a Internet.
 - Peering entre cuentas con rutas automáticas en ambos sentidos.
 - Recuperación mediante `destroy/deploy` + reejecución idempotente de playbooks.
 

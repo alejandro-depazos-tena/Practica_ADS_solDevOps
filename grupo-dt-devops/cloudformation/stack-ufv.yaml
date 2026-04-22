@@ -19,9 +19,6 @@ Parameters:
   AdminCidr:
     Type: String
     Default: 0.0.0.0/0
-  HttpCidr:
-    Type: String
-    Default: 0.0.0.0/0
   PersonalVpcCidr:
     Type: String
     Default: 10.0.0.0/16
@@ -106,13 +103,16 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: !Ref PersonalVpcCidr
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: !Ref HttpCidr
       Tags:
         - Key: Name
           Value: DT-sg-ufv-web
+
+  AppStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub dt-ufv-app-storage-${AWS::AccountId}-${AWS::Region}
+      VersioningConfiguration:
+        Status: Enabled
 
   WebS3Role:
     Type: AWS::IAM::Role
@@ -124,8 +124,23 @@ Resources:
             Principal:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      Policies:
+        - PolicyName: DTWebS3ScopedAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt AppStorageBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub ${AppStorageBucket.Arn}/*
 
   WebS3InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -181,6 +196,24 @@ Resources:
       AllocationId: !GetAtt Web02Eip.AllocationId
       InstanceId: !Ref Web02Instance
 
+  AppStorageBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AppStorageBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceTLS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt AppStorageBucket.Arn
+              - !Sub ${AppStorageBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
 Outputs:
   VpcId:
     Value: !Ref VPC
@@ -202,3 +235,5 @@ Outputs:
     Value: !Ref Web01Eip
   Web02Eip:
     Value: !Ref Web02Eip
+  AppStorageBucketName:
+    Value: !Ref AppStorageBucket

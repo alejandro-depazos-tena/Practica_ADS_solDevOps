@@ -7,6 +7,10 @@ PROFILE_B="${AWS_PROFILE_B:-NicolasB}"
 PROFILE_C="${AWS_PROFILE_C:-MarioC}"
 PROFILE_D="${AWS_PROFILE_D:-GonzaloD}"
 PROFILE_E="${AWS_PROFILE_E:-JesusE}"
+LINUX_USER="${ANSIBLE_SSH_USER:-ansible}"
+LINUX_PASSWORD="${ANSIBLE_SSH_PASSWORD:-}"
+WINDOWS_USER="${ANSIBLE_WIN_USER:-ansible}"
+WINDOWS_PASSWORD="${ANSIBLE_WIN_PASSWORD:-}"
 
 build_hosts() {
   local profile="$1"
@@ -24,7 +28,7 @@ PROFILE_C_JSON=$(build_hosts "$PROFILE_C")
 PROFILE_D_JSON=$(build_hosts "$PROFILE_D")
 PROFILE_E_JSON=$(build_hosts "$PROFILE_E")
 
-PROFILE_A_JSON="$PROFILE_A_JSON" PROFILE_B_JSON="$PROFILE_B_JSON" PROFILE_C_JSON="$PROFILE_C_JSON" PROFILE_D_JSON="$PROFILE_D_JSON" PROFILE_E_JSON="$PROFILE_E_JSON" python3 - <<'PY'
+PROFILE_A_JSON="$PROFILE_A_JSON" PROFILE_B_JSON="$PROFILE_B_JSON" PROFILE_C_JSON="$PROFILE_C_JSON" PROFILE_D_JSON="$PROFILE_D_JSON" PROFILE_E_JSON="$PROFILE_E_JSON" LINUX_USER="$LINUX_USER" LINUX_PASSWORD="$LINUX_PASSWORD" WINDOWS_USER="$WINDOWS_USER" WINDOWS_PASSWORD="$WINDOWS_PASSWORD" python3 - <<'PY'
 import json, os
 
 all_hosts = []
@@ -43,13 +47,16 @@ inv = {
     'linux': {'children': ['linux_personal', 'linux_ufv']},
 }
 
-def add_host(group, host_key, ip, user='ansible', password='Airbusds2026', is_windows=False):
+def add_host(group, host_key, ip, private_ip, user, password, is_windows=False):
     inv[group]['hosts'].append(host_key)
     inv['_meta']['hostvars'][host_key] = {
         'ansible_host': ip,
+        'public_ip': ip,
+        'private_ip': private_ip,
         'ansible_user': user,
-        'ansible_password': password,
     }
+    if password:
+        inv['_meta']['hostvars'][host_key]['ansible_password'] = password
     if is_windows:
         inv['_meta']['hostvars'][host_key].update({
             'ansible_connection': 'winrm',
@@ -67,17 +74,18 @@ def add_host(group, host_key, ip, user='ansible', password='Airbusds2026', is_wi
 for item in all_hosts:
     name = item.get('name') or ''
     ip = item.get('public_ip')
+    private_ip = item.get('private_ip')
     if not ip:
         continue
     if 'WIN-CLIENT' in name:
-        add_host('windows_clients', name or ip, ip, is_windows=True)
+        add_host('windows_clients', name or ip, ip, private_ip, os.environ['WINDOWS_USER'], os.environ['WINDOWS_PASSWORD'], is_windows=True)
     elif 'DC' in name or 'AD' in name or item.get('platform') == 'windows':
-        add_host('windows_personal', name or ip, ip, is_windows=True)
+        add_host('windows_personal', name or ip, ip, private_ip, os.environ['WINDOWS_USER'], os.environ['WINDOWS_PASSWORD'], is_windows=True)
     else:
         if 'UFV' in name or 'Web' in name:
-            add_host('linux_ufv', name or ip, ip)
+            add_host('linux_ufv', name or ip, ip, private_ip, os.environ['LINUX_USER'], os.environ['LINUX_PASSWORD'])
         else:
-            add_host('linux_personal', name or ip, ip)
+            add_host('linux_personal', name or ip, ip, private_ip, os.environ['LINUX_USER'], os.environ['LINUX_PASSWORD'])
         if 'LB' in name or 'Nginx' in name:
             inv['nginx']['hosts'].append(name or ip)
         if 'Postgre' in name or 'DB' in name:
