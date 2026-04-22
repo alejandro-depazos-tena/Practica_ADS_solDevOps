@@ -156,7 +156,7 @@ Haz esta validación mínima:
 
 1. AWS: stacks completas en ambas cuentas.
 2. AWS: peering `active` + rutas cruzadas.
-3. AWS: EIPs asignadas (AD/LB/DB/Web01/Web02).
+3. AWS: EIPs asignadas (AD/LB/DB/Web01/Web02/Web03).
 4. Ansible: inventario dinámico correcto.
 5. AD: dominio/DNS/NTP base operativos.
 6. DB: `academico` y tabla base presentes.

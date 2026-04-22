@@ -14,207 +14,117 @@
 
 ---
 
-## 1. Objetivo
+## 1. Arquitectura final y reparto (5 alumnos)
 
-Diseñar, desplegar e integrar una arquitectura distribuida en AWS, combinando Windows y Linux con un enfoque DevOps completo:
+### 1.1 Reparto por rúbrica
 
-- Infraestructura como código (IaC)
-- Automatización CI/CD
-- Provisioning con Ansible
-- Evidencias de operación para rúbrica
+- **Alumno A (Alejandro):** Windows AD/DC + DNS/DHCP/NTP + cliente Windows unido a dominio.
+- **Alumno B (Nicolás):** Linux LB + Linux DB (PostgreSQL + backup/restore).
+- **Alumno C (Mario):** Linux Web01 con módulo `/profesores`.
+- **Alumno D (Gonzalo):** Linux Web02 con módulo `/alumnos`.
+- **Alumno E (Jesús):** Linux Web03 con módulo `/practicas`.
 
----
+### 1.2 Infraestructura en AWS
 
-## 2. Arquitectura implementada
-
-### 2.1 Distribución por perfiles de alumnos
-
-- **AlejandroA** (`10.0.0.0/16`):
-  - Windows DC01 (AD/DNS/NTP)
-  - Linux Nginx LB
-  - Linux PostgreSQL
-
-- **NicolasB** (`10.1.0.0/16`):
-  - Linux Web01 (Nginx + Node)
-  - Linux Web02 (Nginx + Node)
-
-- **MarioC**, **GonzaloD**, **JesusE**:
-   - perfiles habilitados para operación, validación y automatización del equipo DT.
-
-Ambas VPC quedan integradas por peering + rutas cruzadas.
-
-### 2.2 Reparto por integrantes
-
-- **Alejandro (A):** AD, DNS, NTP y base de políticas.
-- **Nicolás (B):** LB + DB.
-- **Mario (C):** Web01 y backend.
-- **Gonzalo (D):** Web02 y balanceo.
-- **Jesús (E):** cliente Windows y validación de dominio/GPO.
+- **Cuenta personal (`10.0.0.0/16`):** AD, LB, PostgreSQL, cliente Windows.
+- **Cuenta UFV (`10.1.0.0/16`):** Web01, Web02 y Web03.
+- Integración intercuenta mediante **VPC peering + rutas cruzadas**.
 
 ---
 
-## 3. Automatización DevOps aplicada
+## 2. Implementación técnica en repositorio
 
-### 3.1 IaC
-
-Plantillas CloudFormation:
+### 2.1 IaC
 
 - `cloudformation/stack-personal.yaml`
 - `cloudformation/stack-ufv.yaml`
 
-Automatizan red, rutas, seguridad y cómputo.
+Cobertura:
+- VPC, subredes y rutas.
+- Security groups por rol.
+- EC2 Windows/Linux.
+- EIP para instancias críticas.
+- Budget mensual en cuenta personal.
+- IAM Role para acceso S3 desde webservers.
 
-### 3.2 CI/CD
+### 2.2 Pipeline
 
-Se habilitan dos vías:
+- **GitHub Actions:** `.github/workflows/deploy.yml` (incluye despliegue de ambos stacks + peering + rutas).
+- **Jenkins:** `jenkins/Jenkinsfile-infra`, `jenkins/Jenkinsfile-provision`, `jenkins/Jenkinsfile-webdeploy`.
 
-1. **GitHub Actions**
-   - `.github/workflows/deploy.yml`
-   - `.github/workflows/ansible-provision.yml`
+### 2.3 Provisioning Ansible
 
-2. **Jenkins**
-   - `jenkins/Jenkinsfile-infra`
-   - `jenkins/Jenkinsfile-inventory`
-   - `jenkins/Jenkinsfile-provision`
-   - `jenkins/Jenkinsfile-webdeploy`
+- `ansible/playbooks/setup_ad_dns_ntp.yml`
+- `ansible/playbooks/configure_dns_clients.yml`
+- `ansible/playbooks/deploy_app.yml`
+- `ansible/playbooks/update_web.yml`
 
-### 3.3 Provisioning
-
-Con Ansible:
-
-- Inventario dinámico: `ansible/inventory/aws_inventory.sh`
-- Playbooks:
-  - `update_inventory.yml`
-  - `setup_ad_dns_ntp.yml`
-  - `configure_dns_clients.yml`
-  - `setup_python_venv.yml`
-  - `deploy_app.yml`
-  - `update_web.yml`
+Cobertura:
+- AD DS, DNS, DHCP, GPO, NTP en Windows AD.
+- Cliente Windows por DHCP + unión a dominio.
+- Linux con NTP/DNS contra AD.
+- DB `academico` con tablas de la rúbrica.
+- Web por módulos (`/profesores`, `/alumnos`, `/practicas`).
 
 ---
 
-## 4. Flujo de despliegue recomendado
+## 3. Estado de cumplimiento por bloque
 
-1. `scripts/check-prerequisites.sh`
-2. Deploy infraestructura (Jenkins infra o `deploy.yml`)
-3. Build/verificación inventario dinámico
-4. Provisioning completo (`PLAYBOOK=all`)
-5. Actualizaciones incrementales (`webdeploy`)
+### 3.1 Infraestructura AWS base
 
----
+- [x] IAM (roles para S3 en webservers)
+- [x] Diseño de VPC y subredes pública/privada
+- [x] Budget en cuenta personal
+- [x] EC2 Windows + Linux
+- [x] Security Groups
 
-## 5. Cumplimiento de rúbrica
+### 3.2 Windows AD
 
-### 5.1 Infraestructura base
-- [x] VPC, subredes y rutas
-- [x] Security groups por rol (endurecidos por puertos)
-- [x] EC2 Linux + Windows
-- [x] Enfoque IAM sin uso operativo de root
+- [x] AD funcional
+- [x] DNS + DHCP + NTP
+- [x] Recurso CIFS para GPO de mapeo
+- [x] OU + grupo + usuarios demo
+- [x] GPO NoShutdown y GPO MapDrive
+- [x] Cliente Windows unido a dominio
 
-### 5.2 Componente Windows
-- [x] AD DS y DNS automatizables (base)
-- [x] NTP para clientes Linux
-- [x] DHCP configurado en AD (scope + opciones DNS/gateway)
-- [x] GPO NoShutdown y GPO MapDrive creadas, configuradas y vinculadas a OU
-- [x] Cliente Windows con automatización de domain join
+### 3.3 Componentes Linux
 
-### 5.3 Componentes Linux
-- [x] Nginx LB
-- [x] PostgreSQL + esquema base + backup programado
-- [x] Restauración automatizada en base de datos de recuperación
-- [x] Web servers con backend Node
-- [x] Integración S3 por IAM Role + endpoint API `/s3/objects`
-- [x] Despliegue/actualización automatizados
+- [x] LB Nginx reverse proxy
+- [x] 3 locations separadas a webservers distintos
+- [x] PostgreSQL operativo
+- [x] Modelo de datos académico completo
+- [x] Backup/restore de base de datos
+- [x] Integración S3 mediante IAM Role
 
-### 5.4 Criterio DevOps / punto extra
-- [x] IaC versionada
-- [x] Pipeline CI/CD
-- [x] Provisioning reproducible
-- [x] Peering cross-account automatizado en pipeline de Jenkins
+### 3.4 Integración inter-cuenta
 
----
+- [x] Peering y rutas cruzadas automatizadas
+- [x] Resolución y acceso entre capas
 
-## 6. Seguridad y operación
+### 3.5 DRP
 
-- Principio de mínimo privilegio en IAM.
-- Secretos gestionados en Jenkins/GitHub, no en texto plano en pipeline.
-- Restricción de CIDR administrativo para SSH/RDP/WinRM.
-- Web servers UFV accesibles desde la VPC personal (LB), sin exposición HTTP directa a Internet.
-- Peering entre cuentas con rutas automáticas en ambos sentidos.
-- Recuperación mediante `destroy/deploy` + reejecución idempotente de playbooks.
+- [x] Backup de PostgreSQL automatizado
+- [x] Restauración validable (`academico_restore`)
+- [ ] Evidencia ejecutada de backup AD
+- [ ] Evidencia ejecutada de backup S3
+- [ ] Evidencia de restauración en cuenta alternativa
+- [ ] Evidencia de verificación funcional post-restauración
+
+### 3.6 Memoria técnica y evidencias
+
+- [x] Documentación técnica unificada
+- [ ] Todas las capturas de evidencia aún deben adjuntarse en `CHECKLIST_EVIDENCIAS_DT.md`
 
 ---
 
-## 7. Evidencias a adjuntar (checklist)
+## 4. Riesgos y plan de cierre antes de defensa
 
-## 7.1 Evidencias de infraestructura
-- [ ] Captura `stack-personal` en `CREATE_COMPLETE`
-- [ ] Captura `stack-ufv` en `CREATE_COMPLETE`
-- [ ] Captura recursos (EC2, VPC, subnets, routes, SG)
-- [ ] Captura de templates en repositorio
-
-## 7.2 Evidencias de pipelines
-- [ ] Ejecución en verde de `deploy.yml` o Jenkins infra
-- [ ] Ejecución de provisioning (`Jenkinsfile-provision` / `ansible-provision.yml`)
-- [ ] Historial de ejecuciones
-
-## 7.3 Evidencias AD (Alumno A)
-- [ ] AD DS operativo
-- [ ] DNS operativo
-- [ ] NTP operativo
-- [ ] OU + grupo + usuarios
-- [ ] 2 GPO aplicadas
-
-## 7.4 Evidencias Linux (B, C, D)
-- [ ] Nginx LB operativo
-- [ ] Balanceo Web01/Web02
-- [ ] PostgreSQL operativo
-- [ ] Esquema base `academico`
-- [ ] `ufvNodeService` en ejecución
-
-## 7.5 Evidencias de integración
-- [ ] Conectividad cross-account (peering + rutas)
-- [ ] Endpoint web `/`
-- [ ] Endpoint API `/profesores`
-- [ ] Cliente Windows unido a dominio (si aplica)
-
-## 7.6 Evidencias de control de costes
-- [ ] Budget configurado
-- [ ] Alertas de coste
-- [ ] Evidencia de operación con IAM
+1. Completar evidencias pendientes del DRP (AD + S3 + restore cross-account).
+2. Ejecutar prueba guiada de cada location con captura por alumno responsable.
+3. Cerrar checklist al 100% y anexar logs de pipeline y comandos.
 
 ---
 
-## 8. Guion de defensa (resumen)
+## 5. Conclusión
 
-### Apertura (30–45s)
-"Somos el Grupo DT. Hemos implementado la práctica en AWS con enfoque DevOps completo: IaC, pipelines automáticos y Ansible, alineado con la guía de Alex y la rúbrica."
-
-### Puntos clave (4–6 min)
-1. Arquitectura en dos cuentas y peering.
-2. Automatización de infraestructura, despliegue y provisión.
-3. Reparto claro de responsabilidades por integrante.
-4. Evidencias funcionales de AD, LB, Web y DB.
-5. Beneficio: repetibilidad, trazabilidad y menor error manual.
-
-### Cierre (20–30s)
-"La solución cumple requisitos técnicos y de integración, y aporta automatización real para el punto extra DevOps."
-
----
-
-## 9. Preguntas frecuentes del profesor (respuesta corta)
-
-1. **¿Qué aporta DevOps aquí?**
-   - Estandariza despliegue, reduce errores manuales y aporta auditoría.
-
-2. **¿Cómo recuperáis tras un fallo?**
-   - `destroy/deploy` de stacks + re-provisioning Ansible.
-
-3. **¿Por qué no usar root?**
-   - Seguridad y trazabilidad con IAM y mínimo privilegio.
-
----
-
-## 10. Conclusión
-
-El Grupo DT entrega una implementación en AWS completamente automatizada, alineada con la rúbrica y preparada para operación real de laboratorio. La práctica queda reproducible, mantenible y defendible técnicamente.
+La solución queda corregida para un equipo de 5 alumnos con separación de responsabilidades por location y coherencia técnica entre infraestructura, automatización y aplicación. El punto pendiente para nota máxima es cerrar evidencias operativas (capturas/logs) del DRP y de la ejecución final.

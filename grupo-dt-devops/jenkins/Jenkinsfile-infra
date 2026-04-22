@@ -11,7 +11,7 @@ pipeline {
     string(name: 'PROFILE_E', defaultValue: 'JesusE', description: 'Perfil AWS Alumno E')
     string(name: 'KEY_PAIR_PERSONAL', defaultValue: 'aws', description: 'Key pair cuenta personal')
     string(name: 'KEY_PAIR_UFV', defaultValue: 'aws_ufv', description: 'Key pair cuenta UFV')
-    string(name: 'ADMIN_CIDR', defaultValue: '0.0.0.0/0', description: 'CIDR administrativo')
+    string(name: 'ADMIN_CIDR', defaultValue: 'REEMPLAZAR_IP_PUBLICA/32', description: 'CIDR administrativo (obligatorio, no usar 0.0.0.0/0)')
   }
 
   stages {

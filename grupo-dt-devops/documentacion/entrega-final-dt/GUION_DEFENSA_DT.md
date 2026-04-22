@@ -8,7 +8,7 @@
 
 - Cinco perfiles AWS de alumnos: `AlejandroA`, `NicolasB`, `MarioC`, `GonzaloD`, `JesusE`.
 - En Personal: AD + DNS + NTP, LB Nginx y PostgreSQL.
-- En UFV: dos web servers Linux con Nginx + Node.
+- En UFV: tres web servers Linux con Nginx + Node.
 - Integración por VPC peering y rutas cruzadas.
 
 ## 3. Automatización (2 min)
@@ -24,7 +24,7 @@
 - Nicolás: LB y DB.
 - Mario: Web01 y backend.
 - Gonzalo: Web02 y balanceo.
-- Jesús: Windows client y validaciones de dominio/GPO.
+- Jesús: Web03 y módulo `/practicas`.
 
 ## 5. Evidencias mostradas (1-2 min)
 

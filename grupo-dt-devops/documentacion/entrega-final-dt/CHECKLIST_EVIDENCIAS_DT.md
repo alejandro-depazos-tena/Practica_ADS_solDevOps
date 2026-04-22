@@ -24,7 +24,7 @@
 ## 4) Evidencias Linux (Alumno B, C, D)
 
 - [ ] Captura de Nginx LB activo.
-- [ ] Captura de balanceo hacia Web01/Web02.
+- [ ] Captura de balanceo hacia Web01/Web02/Web03.
 - [ ] Captura de PostgreSQL operativo.
 - [ ] Captura de estructura básica de BD (`academico`).
 - [ ] Captura de Node service (`ufvNodeService`) en ejecución.
@@ -46,3 +46,11 @@
 - [ ] Diagrama de arquitectura final actualizado.
 - [ ] Tabla de reparto de tareas por integrante.
 - [ ] Lecciones aprendidas y mejoras futuras.
+
+## 8) Evidencias DRP obligatorias
+
+- [ ] Evidencia de backup AD (System State en DC01).
+- [ ] Evidencia de backup de S3 (versionado/export/sync según estrategia definida).
+- [ ] Procedimiento de restauración documentado y ejecutado en cuenta alternativa.
+- [ ] Evidencia de verificación funcional post-restauración.
+- [ ] Protocolo de comunicación ante incidentes entre los 5 integrantes.

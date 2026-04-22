@@ -69,6 +69,62 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides KeyPairName=${{ secrets.KEY_PAIR_B }} AdminCidr=${{ secrets.ADMIN_CIDR }}
 
+      - name: Leer datos de stack UFV
+        if: env.ACTION == 'deploy'
+        run: |
+          echo "UFV_VPC_ID=$(aws cloudformation describe-stacks --stack-name \"$STACK_UFV\" --query \"Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue\" --output text)" >> $GITHUB_ENV
+          echo "UFV_CIDR=$(aws cloudformation describe-stacks --stack-name \"$STACK_UFV\" --query \"Stacks[0].Outputs[?OutputKey=='VpcCidr'].OutputValue\" --output text)" >> $GITHUB_ENV
+          echo "UFV_RT_ID=$(aws cloudformation describe-stacks --stack-name \"$STACK_UFV\" --query \"Stacks[0].Outputs[?OutputKey=='RouteTableId'].OutputValue\" --output text)" >> $GITHUB_ENV
+          echo "UFV_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Configurar AWS credentials (cuenta personal para peering)
+        if: env.ACTION == 'deploy'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_A }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_A }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Crear y enrutar peering VPC
+        if: env.ACTION == 'deploy'
+        run: |
+          PERSONAL_VPC_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_PERSONAL" --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text)
+          PERSONAL_CIDR=$(aws cloudformation describe-stacks --stack-name "$STACK_PERSONAL" --query "Stacks[0].Outputs[?OutputKey=='VpcCidr'].OutputValue" --output text)
+          PERSONAL_RT_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_PERSONAL" --query "Stacks[0].Outputs[?OutputKey=='RouteTableId'].OutputValue" --output text)
+
+          PEERING_ID=$(aws ec2 describe-vpc-peering-connections \
+            --filters "Name=requester-vpc-info.vpc-id,Values=$PERSONAL_VPC_ID" "Name=accepter-vpc-info.vpc-id,Values=$UFV_VPC_ID" "Name=status-code,Values=active,pending-acceptance" \
+            --query 'VpcPeeringConnections[0].VpcPeeringConnectionId' --output text)
+
+          if [ -z "$PEERING_ID" ] || [ "$PEERING_ID" = "None" ]; then
+            PEERING_ID=$(aws ec2 create-vpc-peering-connection \
+              --vpc-id "$PERSONAL_VPC_ID" \
+              --peer-vpc-id "$UFV_VPC_ID" \
+              --peer-owner-id "$UFV_ACCOUNT_ID" \
+              --query 'VpcPeeringConnection.VpcPeeringConnectionId' \
+              --output text)
+          fi
+
+          echo "PEERING_ID=$PEERING_ID" >> $GITHUB_ENV
+          aws ec2 replace-route --route-table-id "$PERSONAL_RT_ID" --destination-cidr-block "$UFV_CIDR" --vpc-peering-connection-id "$PEERING_ID" || \
+          aws ec2 create-route --route-table-id "$PERSONAL_RT_ID" --destination-cidr-block "$UFV_CIDR" --vpc-peering-connection-id "$PEERING_ID"
+
+      - name: Configurar AWS credentials (cuenta UFV para aceptar peering)
+        if: env.ACTION == 'deploy'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_B }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_B }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Aceptar peering y enrutar en UFV
+        if: env.ACTION == 'deploy'
+        run: |
+          aws ec2 accept-vpc-peering-connection --vpc-peering-connection-id "$PEERING_ID" >/dev/null 2>&1 || true
+          PERSONAL_CIDR=$(aws cloudformation describe-stacks --stack-name "$STACK_PERSONAL" --query "Stacks[0].Outputs[?OutputKey=='VpcCidr'].OutputValue" --output text)
+          aws ec2 replace-route --route-table-id "$UFV_RT_ID" --destination-cidr-block "$PERSONAL_CIDR" --vpc-peering-connection-id "$PEERING_ID" || \
+          aws ec2 create-route --route-table-id "$UFV_RT_ID" --destination-cidr-block "$PERSONAL_CIDR" --vpc-peering-connection-id "$PEERING_ID"
+
       - name: Destroy stack UFV
         if: env.ACTION == 'destroy'
         run: |

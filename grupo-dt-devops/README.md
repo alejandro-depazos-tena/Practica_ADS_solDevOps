@@ -3,11 +3,11 @@
 Proyecto automatizado para la práctica de **Integración de Sistemas en AWS** siguiendo la solución de Alex y la rúbrica.
 
 ## Integrantes
-- Alejandro — Alumno A (AD / Windows DC)
-- Nicolás — Alumno B (LB + DB)
-- Mario — Alumno C (Web server 1)
-- Gonzalo — Alumno D (Web server 2)
-- Jesús — Alumno E (Windows Client)
+- Alejandro — Alumno A (Windows AD/DC + cliente Windows AD)
+- Nicolás — Alumno B (Linux LB + Linux DB)
+- Mario — Alumno C (Linux Web01: location /profesores)
+- Gonzalo — Alumno D (Linux Web02: location /alumnos)
+- Jesús — Alumno E (Linux Web03: location /practicas)
 
 ## Estructura
 - `cloudformation/`: infraestructura AWS (2 cuentas y peering)
@@ -23,6 +23,17 @@ Proyecto automatizado para la práctica de **Integración de Sistemas en AWS** s
 2. Generar inventario dinámico (`Jenkinsfile-inventory`)
 3. Configurar AD + DNS + NTP + Linux (`Jenkinsfile-provision`)
 4. Desplegar/actualizar app (`Jenkinsfile-webdeploy`)
+
+## Alcance técnico alineado con rúbrica
+- 2 VPC en cuentas distintas conectadas por peering + rutas cruzadas.
+- Cuenta personal: AD DS + DNS + DHCP + NTP, LB Nginx, PostgreSQL, cliente Windows.
+- Cuenta UFV: 3 webservers Linux (Web01/Web02/Web03) con módulos separados por location.
+- LB con locations dedicadas:
+	- `/profesores` -> Web01
+	- `/alumnos` -> Web02
+	- `/practicas` -> Web03
+- BD `academico` con tablas: `asignaturas`, `alumnos`, `inscripciones`, `practicas`, `entregas`.
+- Integración S3 por IAM Role en servidores web.
 
 ## Requisitos mínimos
 - AWS CLI configurado con 5 perfiles: `AlejandroA`, `NicolasB`, `MarioC`, `GonzaloD`, `JesusE`

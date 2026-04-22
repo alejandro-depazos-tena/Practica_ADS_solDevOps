@@ -79,6 +79,64 @@
           creditos INTEGER DEFAULT 6,
           fecha_creacion TIMESTAMP DEFAULT NOW()
         );
+        CREATE TABLE IF NOT EXISTS academico.alumnos (
+          id SERIAL PRIMARY KEY,
+          nombre VARCHAR(120) NOT NULL,
+          email VARCHAR(180) UNIQUE NOT NULL,
+          fecha_creacion TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS academico.inscripciones (
+          id SERIAL PRIMARY KEY,
+          alumno_id INTEGER NOT NULL REFERENCES academico.alumnos(id),
+          asignatura_id INTEGER NOT NULL REFERENCES academico.asignaturas(id),
+          fecha_inscripcion TIMESTAMP DEFAULT NOW(),
+          UNIQUE(alumno_id, asignatura_id)
+        );
+        CREATE TABLE IF NOT EXISTS academico.practicas (
+          id SERIAL PRIMARY KEY,
+          titulo VARCHAR(150) NOT NULL,
+          asignatura VARCHAR(120) NOT NULL,
+          descripcion TEXT,
+          fecha_creacion TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS academico.entregas (
+          id SERIAL PRIMARY KEY,
+          practica_id INTEGER NOT NULL REFERENCES academico.practicas(id),
+          alumno_id INTEGER NOT NULL REFERENCES academico.alumnos(id),
+          fecha_entrega TIMESTAMP DEFAULT NOW(),
+          estado VARCHAR(40) DEFAULT 'pendiente'
+        );
+
+        INSERT INTO academico.asignaturas (nombre, descripcion, creditos)
+        SELECT 'Administracion de Sistemas', 'Asignatura principal ADS', 6
+        WHERE NOT EXISTS (SELECT 1 FROM academico.asignaturas WHERE nombre = 'Administracion de Sistemas');
+
+        INSERT INTO academico.alumnos (nombre, email)
+        SELECT 'Alumno Demo', 'alumno.demo@ufv.es'
+        WHERE NOT EXISTS (SELECT 1 FROM academico.alumnos WHERE email = 'alumno.demo@ufv.es');
+
+        INSERT INTO academico.inscripciones (alumno_id, asignatura_id)
+        SELECT a.id, s.id
+        FROM academico.alumnos a, academico.asignaturas s
+        WHERE a.email = 'alumno.demo@ufv.es'
+          AND s.nombre = 'Administracion de Sistemas'
+          AND NOT EXISTS (
+            SELECT 1 FROM academico.inscripciones i WHERE i.alumno_id = a.id AND i.asignatura_id = s.id
+          );
+
+        INSERT INTO academico.practicas (titulo, asignatura, descripcion)
+        SELECT 'Practica 1', 'Administracion de Sistemas', 'Despliegue multi-cuenta AWS'
+        WHERE NOT EXISTS (SELECT 1 FROM academico.practicas WHERE titulo = 'Practica 1');
+
+        INSERT INTO academico.entregas (practica_id, alumno_id, estado)
+        SELECT p.id, a.id, 'entregado'
+        FROM academico.practicas p, academico.alumnos a
+        WHERE p.titulo = 'Practica 1'
+          AND a.email = 'alumno.demo@ufv.es'
+          AND NOT EXISTS (
+            SELECT 1 FROM academico.entregas e WHERE e.practica_id = p.id AND e.alumno_id = a.id
+          );
+
         GRANT USAGE ON SCHEMA academico TO {{ postgres_read_user }}, {{ postgres_write_user }};
         GRANT SELECT ON ALL TABLES IN SCHEMA academico TO {{ postgres_read_user }};
         GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA academico TO {{ postgres_write_user }};
@@ -162,6 +220,31 @@
         dest: /opt/ufv-node/profesores.js
         mode: '0644'
 
+    - name: Copiar alumnos.js
+      ansible.builtin.copy:
+        src: ../../ufv-app/node/alumnos.js
+        dest: /opt/ufv-node/alumnos.js
+        mode: '0644'
+
+    - name: Copiar practicas.js
+      ansible.builtin.copy:
+        src: ../../ufv-app/node/practicas.js
+        dest: /opt/ufv-node/practicas.js
+        mode: '0644'
+
+    - name: Seleccionar script Node por web server
+      ansible.builtin.set_fact:
+        ufv_node_script: >-
+          {% if 'Web01' in inventory_hostname %}
+          profesores.js
+          {% elif 'Web02' in inventory_hostname %}
+          alumnos.js
+          {% elif 'Web03' in inventory_hostname %}
+          practicas.js
+          {% else %}
+          profesores.js
+          {% endif %}
+
     - name: Instalar dependencias npm
       ansible.builtin.command: npm install
       args:
@@ -191,7 +274,7 @@
           Type=simple
           EnvironmentFile=/etc/ufv-node.env
           WorkingDirectory=/opt/ufv-node
-          ExecStart=/usr/bin/node /opt/ufv-node/profesores.js
+          ExecStart=/usr/bin/node /opt/ufv-node/{{ ufv_node_script | trim }}
           Restart=always
 
           [Install]

@@ -1,7 +1,17 @@
-upstream ufv_backend {
-{% for host_ip in ufv_backend_hosts %}
-    server {{ host_ip }}:3001;
-{% endfor %}
+{% set web01_ip = ufv_backend_hosts[0] | default('127.0.0.1') %}
+{% set web02_ip = ufv_backend_hosts[1] | default(web01_ip) %}
+{% set web03_ip = ufv_backend_hosts[2] | default(web02_ip) %}
+
+upstream ufv_profesores {
+    server {{ web01_ip }}:80;
+}
+
+upstream ufv_alumnos {
+    server {{ web02_ip }}:80;
+}
+
+upstream ufv_practicas {
+    server {{ web03_ip }}:80;
 }
 
 server {
@@ -19,19 +29,31 @@ server {
     }
 
     location /profesores/ {
-        proxy_pass http://ufv_backend/;
+        proxy_pass http://ufv_profesores/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /alumnos/ {
+        proxy_pass http://ufv_alumnos/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /practicas/ {
+        proxy_pass http://ufv_practicas/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /health/ {
-        proxy_pass http://ufv_backend/health;
+        proxy_pass http://ufv_profesores/health;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /s3/ {
-        proxy_pass http://ufv_backend/s3/;
+        proxy_pass http://ufv_profesores/s3/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

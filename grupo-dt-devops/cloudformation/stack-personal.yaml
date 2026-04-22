@@ -21,7 +21,7 @@ Parameters:
     Default: ami-0349104b138bf332c
   AdminCidr:
     Type: String
-    Default: 0.0.0.0/0
+    Description: CIDR administrativo permitido para SSH/RDP/WinRM (ejemplo 203.0.113.10/32)
   HttpCidr:
     Type: String
     Default: 0.0.0.0/0

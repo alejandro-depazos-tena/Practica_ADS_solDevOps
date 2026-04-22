@@ -18,7 +18,7 @@ Parameters:
     Default: /aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp3/ami-id
   AdminCidr:
     Type: String
-    Default: 0.0.0.0/0
+    Description: CIDR administrativo permitido para SSH (ejemplo 203.0.113.10/32)
   PersonalVpcCidr:
     Type: String
     Default: 10.0.0.0/16
@@ -174,6 +174,19 @@ Resources:
         - Key: Name
           Value: DT-UFV-Web02
 
+  Web03Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiLinux
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref WebSecurityGroup]
+      IamInstanceProfile: !Ref WebS3InstanceProfile
+      Tags:
+        - Key: Name
+          Value: DT-UFV-Web03
+
   Web01Eip:
     Type: AWS::EC2::EIP
     Properties:
@@ -195,6 +208,17 @@ Resources:
     Properties:
       AllocationId: !GetAtt Web02Eip.AllocationId
       InstanceId: !Ref Web02Instance
+
+  Web03Eip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  Web03EipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt Web03Eip.AllocationId
+      InstanceId: !Ref Web03Instance
 
   AppStorageBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -231,9 +255,13 @@ Outputs:
     Value: !Ref Web01Instance
   Web02InstanceId:
     Value: !Ref Web02Instance
+  Web03InstanceId:
+    Value: !Ref Web03Instance
   Web01Eip:
     Value: !Ref Web01Eip
   Web02Eip:
     Value: !Ref Web02Eip
+  Web03Eip:
+    Value: !Ref Web03Eip
   AppStorageBucketName:
     Value: !Ref AppStorageBucket

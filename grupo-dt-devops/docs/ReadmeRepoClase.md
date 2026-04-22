@@ -6,7 +6,7 @@
 
 - Ubuntu (control node) donde se instalará Jenkins y Ansible.
 - Cuenta AWS con permisos para crear EC2, VPC, Security Groups, etc.
-- Instancias EC2 Linux y Windows (sin Elastic IPs, podemos usar DNS público dinámico o inventario dinámico).
+- Instancias EC2 Linux y Windows (con Elastic IP en servicios críticos y/o inventario dinámico para automatización).
 - SSH key para Linux y usuario administrador con contraseña para Windows.
 
 ---
