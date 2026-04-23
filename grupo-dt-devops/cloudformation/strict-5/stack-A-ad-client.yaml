@@ -13,6 +13,14 @@ Parameters:
     Default: 10.10.11.0/24
   KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
+  WindowsInstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t2.micro
   AmiWindows:
     Type: AWS::EC2::Image::Id
     Default: ami-0349104b138bf332c
@@ -28,6 +36,13 @@ Parameters:
     Default: 10
   BudgetEmail:
     Type: String
+  EnableBudget:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+
+Conditions:
+  CreateBudget: !Equals [!Ref EnableBudget, "true"]
 
 Resources:
   VPC:
@@ -219,7 +234,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref AmiWindows
-      InstanceType: t3.medium
+      InstanceType: !Ref WindowsInstanceType
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnet
       SecurityGroupIds: [!Ref ADSecurityGroup]
@@ -231,7 +246,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref AmiWindows
-      InstanceType: t3.medium
+      InstanceType: !Ref WindowsInstanceType
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnet
       SecurityGroupIds: [!Ref WindowsClientSecurityGroup]
@@ -263,6 +278,7 @@ Resources:
 
   MonthlyBudget:
     Type: AWS::Budgets::Budget
+    Condition: CreateBudget
     Properties:
       Budget:
         BudgetName: DT-A-Mensual
