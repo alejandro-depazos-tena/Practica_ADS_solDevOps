@@ -1,0 +1,77 @@
+pipeline {
+  agent any
+
+  parameters {
+    choice(name: 'ACTION', choices: ['deploy', 'destroy'], description: 'Accion sobre la infraestructura de Alumno A')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Infra Alumno A') {
+      steps {
+        sh '''
+          set -e
+          if [ -f .env ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          : "${AWS_REGION:?Define AWS_REGION en .env}"
+          : "${AWS_PROFILE_A:?Define AWS_PROFILE_A en .env}"
+          : "${KEY_PAIR_PERSONAL:?Define KEY_PAIR_PERSONAL en .env}"
+          if [ -z "${ADMIN_CIDR:-}" ] || [ "$ADMIN_CIDR" = "auto" ]; then
+            ADMIN_IP=$(curl -s https://checkip.amazonaws.com || true)
+            if [ -z "$ADMIN_IP" ]; then
+              echo "No se pudo detectar la IP publica para ADMIN_CIDR"
+              exit 1
+            fi
+            ADMIN_CIDR="${ADMIN_IP}/32"
+            echo "ADMIN_CIDR auto-detectado: $ADMIN_CIDR"
+          fi
+          : "${ADMIN_CIDR:?Define ADMIN_CIDR en .env}"
+
+          if [ "$ACTION" = "deploy" ]; then
+            aws sts get-caller-identity --profile "$AWS_PROFILE_A" >/dev/null
+
+            aws cloudformation deploy --profile "$AWS_PROFILE_A" --region "$AWS_REGION" \
+              --stack-name dt-stack-personal \
+              --template-file cloudformation/stack-personal.yaml \
+              --parameter-overrides KeyPairName="$KEY_PAIR_PERSONAL" AdminCidr="$ADMIN_CIDR"
+          else
+            aws cloudformation delete-stack --profile "$AWS_PROFILE_A" --region "$AWS_REGION" --stack-name dt-stack-personal || true
+          fi
+        '''
+      }
+    }
+
+    stage('Provision Alumno A') {
+      when {
+        expression { params.ACTION == 'deploy' }
+      }
+      steps {
+        sh '''
+          set -e
+          if [ -f .env ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          INVENTORY=ansible/inventory/aws_inventory.sh
+          ansible-playbook -i $INVENTORY ansible/playbooks/update_inventory.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/setup_ad_dns_ntp.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/configure_dns_clients.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/setup_python_venv.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/deploy_app.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/update_web.yml
+        '''
+      }
+    }
+  }
+}

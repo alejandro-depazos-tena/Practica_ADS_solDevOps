@@ -25,6 +25,15 @@ pipeline {
       steps {
         sh '''
           set -e
+          if [ -z "${ADMIN_CIDR:-}" ] || [ "$ADMIN_CIDR" = "auto" ]; then
+            ADMIN_IP=$(curl -s https://checkip.amazonaws.com || true)
+            if [ -z "$ADMIN_IP" ]; then
+              echo "No se pudo detectar la IP publica para ADMIN_CIDR"
+              exit 1
+            fi
+            ADMIN_CIDR="${ADMIN_IP}/32"
+            echo "ADMIN_CIDR auto-detectado: $ADMIN_CIDR"
+          fi
           ensure_route () {
             local profile="$1"
             local region="$2"

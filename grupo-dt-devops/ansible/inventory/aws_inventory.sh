@@ -9,8 +9,20 @@ PROFILE_D="${AWS_PROFILE_D:-GonzaloD}"
 PROFILE_E="${AWS_PROFILE_E:-JesusE}"
 LINUX_USER="${ANSIBLE_SSH_USER:-ansible}"
 LINUX_PASSWORD="${ANSIBLE_SSH_PASSWORD:-}"
+LINUX_KEY_PERSONAL="${ANSIBLE_SSH_PRIVATE_KEY_FILE_PERSONAL:-${ANSIBLE_SSH_PRIVATE_KEY_FILE:-}}"
+LINUX_KEY_UFV="${ANSIBLE_SSH_PRIVATE_KEY_FILE_UFV:-${ANSIBLE_SSH_PRIVATE_KEY_FILE:-}}"
 WINDOWS_USER="${ANSIBLE_WIN_USER:-ansible}"
 WINDOWS_PASSWORD="${ANSIBLE_WIN_PASSWORD:-}"
+
+AVAILABLE_PROFILES=$(aws configure list-profiles 2>/dev/null || true)
+
+profile_available() {
+    local profile="$1"
+    if [ -z "$profile" ]; then
+        return 1
+    fi
+    echo "$AVAILABLE_PROFILES" | tr -d '\r' | grep -qx "$profile"
+}
 
 build_hosts() {
   local profile="$1"
@@ -22,18 +34,27 @@ build_hosts() {
     --output json
 }
 
-PROFILE_A_JSON=$(build_hosts "$PROFILE_A")
-PROFILE_B_JSON=$(build_hosts "$PROFILE_B")
-PROFILE_C_JSON=$(build_hosts "$PROFILE_C")
-PROFILE_D_JSON=$(build_hosts "$PROFILE_D")
-PROFILE_E_JSON=$(build_hosts "$PROFILE_E")
+PROFILE_A_JSON=""
+PROFILE_B_JSON=""
+PROFILE_C_JSON=""
+PROFILE_D_JSON=""
+PROFILE_E_JSON=""
 
-PROFILE_A_JSON="$PROFILE_A_JSON" PROFILE_B_JSON="$PROFILE_B_JSON" PROFILE_C_JSON="$PROFILE_C_JSON" PROFILE_D_JSON="$PROFILE_D_JSON" PROFILE_E_JSON="$PROFILE_E_JSON" LINUX_USER="$LINUX_USER" LINUX_PASSWORD="$LINUX_PASSWORD" WINDOWS_USER="$WINDOWS_USER" WINDOWS_PASSWORD="$WINDOWS_PASSWORD" python3 - <<'PY'
+if profile_available "$PROFILE_A"; then PROFILE_A_JSON=$(build_hosts "$PROFILE_A"); fi
+if profile_available "$PROFILE_B"; then PROFILE_B_JSON=$(build_hosts "$PROFILE_B"); fi
+if profile_available "$PROFILE_C"; then PROFILE_C_JSON=$(build_hosts "$PROFILE_C"); fi
+if profile_available "$PROFILE_D"; then PROFILE_D_JSON=$(build_hosts "$PROFILE_D"); fi
+if profile_available "$PROFILE_E"; then PROFILE_E_JSON=$(build_hosts "$PROFILE_E"); fi
+
+PROFILE_A_JSON="$PROFILE_A_JSON" PROFILE_B_JSON="$PROFILE_B_JSON" PROFILE_C_JSON="$PROFILE_C_JSON" PROFILE_D_JSON="$PROFILE_D_JSON" PROFILE_E_JSON="$PROFILE_E_JSON" LINUX_USER="$LINUX_USER" LINUX_PASSWORD="$LINUX_PASSWORD" LINUX_KEY_PERSONAL="$LINUX_KEY_PERSONAL" LINUX_KEY_UFV="$LINUX_KEY_UFV" WINDOWS_USER="$WINDOWS_USER" WINDOWS_PASSWORD="$WINDOWS_PASSWORD" python3 - <<'PY'
 import json, os
 
 all_hosts = []
 for key in ('PROFILE_A_JSON', 'PROFILE_B_JSON', 'PROFILE_C_JSON', 'PROFILE_D_JSON', 'PROFILE_E_JSON'):
-    all_hosts.extend(json.loads(os.environ[key]))
+    raw = os.environ.get(key)
+    if not raw:
+        continue
+    all_hosts.extend(json.loads(raw))
 
 inv = {
     '_meta': {'hostvars': {}},
@@ -47,7 +68,7 @@ inv = {
     'linux': {'children': ['linux_personal', 'linux_ufv']},
 }
 
-def add_host(group, host_key, ip, private_ip, user, password, is_windows=False):
+def add_host(group, host_key, ip, private_ip, user, password, is_windows=False, private_key=None):
     inv[group]['hosts'].append(host_key)
     inv['_meta']['hostvars'][host_key] = {
         'ansible_host': ip,
@@ -70,6 +91,11 @@ def add_host(group, host_key, ip, private_ip, user, password, is_windows=False):
             'ansible_become': True,
             'ansible_become_method': 'sudo'
         })
+        if private_key:
+            inv['_meta']['hostvars'][host_key]['ansible_ssh_private_key_file'] = private_key
+
+linux_key_personal = os.environ.get('LINUX_KEY_PERSONAL')
+linux_key_ufv = os.environ.get('LINUX_KEY_UFV')
 
 for item in all_hosts:
     name = item.get('name') or ''
@@ -83,9 +109,9 @@ for item in all_hosts:
         add_host('windows_personal', name or ip, ip, private_ip, os.environ['WINDOWS_USER'], os.environ['WINDOWS_PASSWORD'], is_windows=True)
     else:
         if 'UFV' in name or 'Web' in name:
-            add_host('linux_ufv', name or ip, ip, private_ip, os.environ['LINUX_USER'], os.environ['LINUX_PASSWORD'])
+            add_host('linux_ufv', name or ip, ip, private_ip, os.environ['LINUX_USER'], os.environ['LINUX_PASSWORD'], private_key=linux_key_ufv)
         else:
-            add_host('linux_personal', name or ip, ip, private_ip, os.environ['LINUX_USER'], os.environ['LINUX_PASSWORD'])
+            add_host('linux_personal', name or ip, ip, private_ip, os.environ['LINUX_USER'], os.environ['LINUX_PASSWORD'], private_key=linux_key_personal)
         if 'LB' in name or 'Nginx' in name:
             inv['nginx']['hosts'].append(name or ip)
         if 'Postgre' in name or 'DB' in name:

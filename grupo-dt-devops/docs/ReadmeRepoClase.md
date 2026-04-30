@@ -731,6 +731,38 @@ Para actualizaciones posteriores de la web: solo lanzar `AWS-UFV-Ansible-Web-Dep
 
 ---
 
+## Pipelines full por alumno (automatizado end-to-end)
+
+Además de los 4 jobs base, existen pipelines completos por alumno:
+
+- `DT-Alumno-A-Full` → usa `jenkins/Jenkinsfile-alumno-a`
+- `DT-Alumno-B-Full` → usa `jenkins/Jenkinsfile-alumno-b`
+
+Estos jobs cargan variables desde `.env` (en la raíz del repo) y ejecutan:
+
+1. CloudFormation del alumno correspondiente.
+2. Inventario dinámico.
+3. Provisioning Ansible necesario.
+4. Actualización web.
+
+### Variables necesarias en `.env`
+
+```ini
+AWS_REGION=eu-south-2
+AWS_PROFILE_A=AlejandroA
+AWS_PROFILE_B=NicolasB
+KEY_PAIR_PERSONAL=dt-a-key
+KEY_PAIR_UFV=partB-key-fixed
+ADMIN_CIDR=15.217.136.34/32
+ANSIBLE_SSH_PRIVATE_KEY_FILE_PERSONAL=dt-a-key.pem
+ANSIBLE_SSH_PRIVATE_KEY_FILE_UFV=partB-key-fixed.pem
+```
+
+**Nota:** `ADMIN_CIDR` debe ser la IP pública desde la que Jenkins/tu equipo accede por SSH/RDP/WinRM.
+Si cambias de red a menudo, puedes poner `ADMIN_CIDR=auto` y los pipelines detectarán la IP pública del nodo Jenkins automáticamente.
+
+---
+
 ## Solución de problemas
 
 ### Stack en ROLLBACK
