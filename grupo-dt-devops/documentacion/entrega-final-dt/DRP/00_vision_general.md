@@ -16,27 +16,27 @@ El Plan de Recuperación ante Desastres de la práctica **no está limitado a la
 ```mermaid
 flowchart TB
 	U[Usuario / Defensa] --> LB[Nginx Load Balancer]
-	LB --> W1[Web01 /profesores]
-	LB --> W2[Web02 /alumnos]
-	LB --> W3[Web03 /practicas]
+	LB --> W1[Location /profesores]
+	LB --> W2[Location /alumnos]
+	LB --> W3[Location /practicas]
 	W1 --> DB[(PostgreSQL academico)]
 	W2 --> DB
 	W3 --> DB
-	W1 --> S3[(S3 Bucket)]
+	W1 --> S3[(S3)]
 	W2 --> S3
 	W3 --> S3
 	U --> AD[Active Directory / DNS / DHCP / NTP]
 	AD --> C[Cliente Windows unido al dominio]
-	AD --> NET[Red / VPC / Peering / Routes]
+	AD --> NET[Red privada / VPC / Peering / Rutas]
 ```
 
 ### Cómo explicarlo
 
-- El **usuario** entra por el LB.
-- El LB reparte a los tres módulos web.
-- Las apps consumen la base de datos y S3.
+- El **usuario** entra por el balanceador.
+- El balanceador distribuye a las tres locations de la aplicación.
+- Las aplicaciones consumen la base de datos y almacenan ficheros en S3.
 - AD sostiene identidad, DNS, DHCP y sincronización de tiempo.
-- La red y el peering son la base que permite que todo se vea entre cuentas.
+- La red privada y el peering permiten la comunicación entre capas y cuentas.
 
 ## Idea de recuperación
 

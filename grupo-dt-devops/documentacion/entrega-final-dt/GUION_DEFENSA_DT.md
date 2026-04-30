@@ -7,13 +7,14 @@
 ## 2. Arquitectura (1-2 min)
 
 - Cinco perfiles AWS de alumnos: `AlejandroA`, `NicolasB`, `MarioC`, `GonzaloD`, `JesusE`.
-- En Personal: AD + DNS + NTP, LB Nginx y PostgreSQL.
-- En UFV: tres web servers Linux con Nginx + Node.
-- Integración por VPC peering y rutas cruzadas.
+- En la cuenta de A: AD + DNS + NTP y cliente Windows.
+- En la cuenta de B: LB Nginx y PostgreSQL.
+- En las cuentas de C, D y E: tres web servers Linux con Nginx + Node.
+- Integración por VPC peering y rutas cruzadas entre cuentas.
 
 ## 3. Automatización (2 min)
 
-- IaC con CloudFormation (`stack-personal.yaml`, `stack-ufv.yaml`).
+- IaC con CloudFormation para los stacks `A`, `B`, `C`, `D` y `E`.
 - CI/CD con GitHub Actions y Jenkinsfiles.
 - Provisioning con Ansible (inventario dinámico + playbooks).
 - Flujo repetible: deploy → inventario → provisioning → web update.

@@ -2,10 +2,9 @@
 
 ## 1) Evidencias de infraestructura (IaC)
 
-- [ ] Captura de `stack-personal` en `CREATE_COMPLETE`.
-- [ ] Captura de `stack-ufv` en `CREATE_COMPLETE`.
+- [ ] Captura de los stacks de la práctica en `CREATE_COMPLETE`.
 - [ ] Captura de recursos creados (EC2, VPC, subnets, route tables, SG).
-- [ ] Captura de templates `stack-personal.yaml` y `stack-ufv.yaml` en el repo.
+- [ ] Captura de templates `stack-A-ad-client.yaml`, `stack-B-lb-db.yaml`, `stack-C-web-upstream1.yaml`, `stack-D-web-upstream2.yaml` y `stack-E-web-upstream3.yaml` en el repo.
 
 ## 2) Evidencias de pipeline DevOps
 
@@ -27,7 +26,7 @@
 - [ ] Captura de balanceo hacia Web01/Web02/Web03.
 - [ ] Captura de PostgreSQL operativo.
 - [ ] Captura de estructura básica de BD (`academico`).
-- [ ] Captura de Node service (`ufvNodeService`) en ejecución.
+- [ ] Captura de Node service en ejecución.
 
 ## 5) Evidencias de integración
 
