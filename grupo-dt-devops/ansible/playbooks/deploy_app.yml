@@ -263,6 +263,12 @@
         dest: /opt/ufv-node/practicas.js
         mode: '0644'
 
+    - name: Copiar practicas.html
+      ansible.builtin.copy:
+        src: ../../ufv-app/node/practicas.html
+        dest: /opt/ufv-node/practicas.html
+        mode: '0644'
+
     - name: Seleccionar script Node por web server
       ansible.builtin.set_fact:
         ufv_node_script: >-
