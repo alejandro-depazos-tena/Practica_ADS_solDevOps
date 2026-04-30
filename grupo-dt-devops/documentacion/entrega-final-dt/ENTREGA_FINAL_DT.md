@@ -30,6 +30,43 @@
 - **Cuenta UFV (`10.1.0.0/16`):** Web01, Web02 y Web03.
 - Integración intercuenta mediante **VPC peering + rutas cruzadas**.
 
+### 1.3 Diagrama global de arquitectura
+
+```mermaid
+flowchart LR
+  User[Usuario / Defensa] --> LB[Nginx LB]
+  LB --> W1[Web01 /profesores]
+  LB --> W2[Web02 /alumnos]
+  LB --> W3[Web03 /practicas]
+
+  subgraph Personal[Cuenta personal]
+    AD[AD / DNS / DHCP / NTP]
+    DB[(PostgreSQL academico)]
+    WIN[Cliente Windows unido al dominio]
+  end
+
+  subgraph UFV[Cuenta UFV]
+    W1
+    W2
+    W3
+    S3[(S3 / Evidencias)]
+  end
+
+  W1 --> DB
+  W2 --> DB
+  W3 --> DB
+  W1 --> S3
+  W2 --> S3
+  W3 --> S3
+  AD --> WIN
+  AD -. DNS / tiempo .-> W1
+  AD -. DNS / tiempo .-> W2
+  AD -. DNS / tiempo .-> W3
+  Personal <-->|Peering + rutas| UFV
+```
+
+**Idea para explicar:** el usuario entra por el balanceador, el balanceador distribuye a los tres módulos, los módulos consumen datos compartidos y la cuenta personal aporta identidad, red y persistencia crítica.
+
 ---
 
 ## 2. Implementación técnica en repositorio
