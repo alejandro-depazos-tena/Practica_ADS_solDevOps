@@ -38,6 +38,12 @@
         dest: /opt/ufv-node/practicas.js
         mode: '0644'
 
+    - name: Copiar practicas.html actualizado
+      ansible.builtin.copy:
+        src: ../../ufv-app/node/practicas.html
+        dest: /opt/ufv-node/practicas.html
+        mode: '0644'
+
     - name: Reiniciar servicio node
       ansible.builtin.systemd:
         name: ufvNodeService
