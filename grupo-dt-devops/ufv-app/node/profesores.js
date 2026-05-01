@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const path = require('path');
 const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 
 const app = express();
@@ -25,7 +26,11 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.get('/profesores', async (req, res) => {
+app.get('/profesores', (req, res) => {
+  res.sendFile(path.join(__dirname, 'profesores.html'));
+});
+
+app.get('/profesores/lista', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, nombre FROM academico.asignaturas ORDER BY id LIMIT 50');
     res.json(result.rows);

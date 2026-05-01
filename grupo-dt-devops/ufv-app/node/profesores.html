@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modulo Profesores - Portal Academico UFV</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f2f7f6; color: #1f2a33; }
+    header { background: #0f766e; color: #ecfeff; padding: 18px 32px; }
+    header h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    header p { color: #ccfbf1; font-size: 0.92rem; }
+    header a { color: #99f6e4; font-size: 0.9rem; text-decoration: none; display: inline-block; margin-top: 8px; }
+    .container { max-width: 1040px; margin: 28px auto; padding: 0 16px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .metric, .card { background: white; border: 1px solid #d7e4e1; border-radius: 8px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+    .metric { padding: 16px; }
+    .metric span { display: block; color: #5a6b75; font-size: 0.8rem; margin-bottom: 8px; }
+    .metric strong { color: #0f766e; font-size: 1.7rem; }
+    .card { padding: 22px; margin-bottom: 22px; }
+    h2 { font-size: 1.05rem; color: #0f766e; border-bottom: 2px solid #ccfbf1; padding-bottom: 8px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: #ccfbf1; color: #0f766e; padding: 10px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
+    tr:hover td { background: #f8fafc; }
+    .msg { padding: 10px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-bottom: 12px; font-size: 0.9rem; }
+    .empty { color: #64748b; font-style: italic; }
+    .muted { color: #6b7280; }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      header { padding: 16px; }
+      table { font-size: 0.82rem; }
+      th, td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Portal Academico UFV - Modulo Profesores</h1>
+    <p>Alumno C · Upstream /profesores · Grupo DT</p>
+    <a href="/">Volver al inicio</a>
+  </header>
+
+  <main class="container">
+    <section class="grid">
+      <div class="metric"><span>Asignaturas disponibles</span><strong id="total-asignaturas">-</strong></div>
+      <div class="metric"><span>Objetos en S3</span><strong id="total-objetos">-</strong></div>
+      <div class="metric"><span>Estado del modulo</span><strong id="estado-modulo">-</strong></div>
+    </section>
+
+    <section class="card">
+      <h2>Catalogo de asignaturas</h2>
+      <div id="msg-asignaturas"></div>
+      <table id="tabla-asignaturas">
+        <thead>
+          <tr><th>ID</th><th>Asignatura</th></tr>
+        </thead>
+        <tbody><tr><td colspan="2" class="empty">Cargando asignaturas...</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Ultimos objetos en S3</h2>
+      <div id="msg-s3"></div>
+      <table id="tabla-s3">
+        <thead>
+          <tr><th>Clave</th><th>Tamano</th><th>Ultima actualizacion</th></tr>
+        </thead>
+        <tbody><tr><td colspan="3" class="empty">Cargando objetos...</td></tr></tbody>
+      </table>
+      <p class="muted" style="margin-top:12px;">Si S3 no esta configurado, este bloque mostrara un aviso.</p>
+    </section>
+  </main>
+
+  <script>
+    function setText(id, value) {
+      document.getElementById(id).textContent = value ?? '-';
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      return new Date(value).toLocaleString('es-ES');
+    }
+
+    function formatSize(bytes) {
+      if (bytes === 0) return '0 B';
+      if (!bytes) return '-';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const idx = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+      return (bytes / Math.pow(1024, idx)).toFixed(1) + ' ' + units[idx];
+    }
+
+    async function cargarAsignaturas() {
+      try {
+        const res = await fetch('/profesores/lista');
+        const data = await res.json();
+        const tbody = document.querySelector('#tabla-asignaturas tbody');
+        if (!data.length) {
+          tbody.innerHTML = '<tr><td colspan="2" class="empty">No hay asignaturas disponibles.</td></tr>';
+          setText('total-asignaturas', '0');
+          return;
+        }
+        tbody.innerHTML = data.map((a) => `
+          <tr>
+            <td>${a.id}</td>
+            <td>${a.nombre}</td>
+          </tr>
+        `).join('');
+        setText('total-asignaturas', data.length);
+      } catch (error) {
+        document.getElementById('msg-asignaturas').innerHTML = '<div class="msg">Error al cargar asignaturas: ' + error.message + '</div>';
+        setText('total-asignaturas', '-');
+      }
+    }
+
+    async function cargarS3() {
+      try {
+        const res = await fetch('/s3/objects');
+        const data = await res.json();
+        if (!res.ok) {
+          document.getElementById('msg-s3').innerHTML = '<div class="msg">' + (data.message || 'S3 no disponible') + '</div>';
+          setText('total-objetos', '-');
+          return;
+        }
+        const objects = data.objects || [];
+        const tbody = document.querySelector('#tabla-s3 tbody');
+        if (!objects.length) {
+          tbody.innerHTML = '<tr><td colspan="3" class="empty">No hay objetos en el bucket.</td></tr>';
+        } else {
+          tbody.innerHTML = objects.map((o) => `
+            <tr>
+              <td>${o.key}</td>
+              <td>${formatSize(o.size)}</td>
+              <td>${formatDate(o.lastModified)}</td>
+            </tr>
+          `).join('');
+        }
+        setText('total-objetos', objects.length);
+      } catch (error) {
+        document.getElementById('msg-s3').innerHTML = '<div class="msg">Error al consultar S3: ' + error.message + '</div>';
+        setText('total-objetos', '-');
+      }
+    }
+
+    async function cargarHealth() {
+      try {
+        const res = await fetch('/health');
+        if (!res.ok) {
+          setText('estado-modulo', 'KO');
+          return;
+        }
+        const data = await res.json();
+        setText('estado-modulo', data.status === 'ok' ? 'OK' : 'KO');
+      } catch (error) {
+        setText('estado-modulo', 'KO');
+      }
+    }
+
+    cargarAsignaturas();
+    cargarS3();
+    cargarHealth();
+  </script>
+</body>
+</html>
