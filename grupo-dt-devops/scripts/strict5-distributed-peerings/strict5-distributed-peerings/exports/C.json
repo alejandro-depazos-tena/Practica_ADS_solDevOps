@@ -1,0 +1,11 @@
+﻿{
+    "accountKey":  "C",
+    "profile":  "MarioC",
+    "stack":  "dt-c-web-upstream1",
+    "region":  "eu-south-2",
+    "accountId":  "631069968356",
+    "vpcId":  "vpc-0a6b9ee57b485c5cd",
+    "vpcCidr":  "10.30.0.0/16",
+    "publicRouteTableId":  "rtb-04ff5382f7bb56b52",
+    "privateRouteTableId":  "rtb-0a294e6ea93f9c8d0"
+}
