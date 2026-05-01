@@ -66,20 +66,37 @@ function Ensure-Route {
     return
   }
 
-  aws --profile $Profile --region $Region ec2 replace-route `
-    --route-table-id $RouteTableId `
-    --destination-cidr-block $DestinationCidr `
-    --vpc-peering-connection-id $PeeringId *> $null
+  $existingRoute = aws --profile $Profile --region $Region ec2 describe-route-tables `
+    --route-table-ids $RouteTableId `
+    --query "RouteTables[0].Routes[?DestinationCidrBlock=='$DestinationCidr'] | [0].DestinationCidrBlock" `
+    --output text
 
   if ($LASTEXITCODE -ne 0) {
+    throw "Failed to inspect route table $RouteTableId"
+  }
+
+  if (-not $existingRoute -or $existingRoute -eq "None") {
+    Write-Host "Creating route in ${RouteTableId}: $DestinationCidr -> $PeeringId"
     aws --profile $Profile --region $Region ec2 create-route `
       --route-table-id $RouteTableId `
       --destination-cidr-block $DestinationCidr `
       --vpc-peering-connection-id $PeeringId *> $null
 
     if ($LASTEXITCODE -ne 0) {
-      throw "Failed to create or replace route in table $RouteTableId"
+      throw "Failed to create route in table $RouteTableId"
     }
+
+    return
+  }
+
+  Write-Host "Replacing route in ${RouteTableId}: $DestinationCidr -> $PeeringId"
+  aws --profile $Profile --region $Region ec2 replace-route `
+    --route-table-id $RouteTableId `
+    --destination-cidr-block $DestinationCidr `
+    --vpc-peering-connection-id $PeeringId *> $null
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to replace route in table $RouteTableId"
   }
 }
 
