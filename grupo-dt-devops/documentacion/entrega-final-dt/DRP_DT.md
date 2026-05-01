@@ -4,6 +4,8 @@
 
 Recuperar el servicio completo ante fallo grave manteniendo continuidad operativa de AD, Linux, base de datos y almacenamiento S3.
 
+Este documento es el resumen ejecutivo; la versión completa y operativa del DRP está en `documentacion/entrega-final-dt/DRP/`.
+
 ## 2. Alcance de backup
 
 - AD (DC01): System State backup.
@@ -37,3 +39,18 @@ Recuperar el servicio completo ante fallo grave manteniendo continuidad operativ
 - AD y cliente Windows operativos con políticas aplicadas.
 - DB restaurada y consultas con resultados válidos.
 - Integración S3 funcional por IAM Role.
+
+## 6. Documentación extendida
+
+La versión detallada y operativa del DRP se mantiene en:
+
+- `documentacion/entrega-final-dt/DRP/`
+
+Incluye:
+
+- Estrategia 3-2-1
+- Backups de Active Directory, PostgreSQL y S3
+- Procedimiento de restauración end-to-end
+- Objetivos RTO/RPO
+- Checklist de evidencias
+- Scripts de ejemplo para backup y restore

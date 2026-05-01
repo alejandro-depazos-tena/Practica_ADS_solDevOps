@@ -1,0 +1,74 @@
+pipeline {
+  agent any
+
+  parameters {
+    choice(name: 'ACTION', choices: ['deploy', 'destroy'], description: 'Accion sobre la infraestructura de Alumno B')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Infra Alumno B') {
+      steps {
+        sh '''
+          set -e
+          if [ -f .env ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          : "${AWS_REGION:?Define AWS_REGION en .env}"
+          : "${AWS_PROFILE_B:?Define AWS_PROFILE_B en .env}"
+          : "${KEY_PAIR_UFV:?Define KEY_PAIR_UFV en .env}"
+          if [ -z "${ADMIN_CIDR:-}" ] || [ "$ADMIN_CIDR" = "auto" ]; then
+            ADMIN_IP=$(curl -s https://checkip.amazonaws.com || true)
+            if [ -z "$ADMIN_IP" ]; then
+              echo "No se pudo detectar la IP publica para ADMIN_CIDR"
+              exit 1
+            fi
+            ADMIN_CIDR="${ADMIN_IP}/32"
+            echo "ADMIN_CIDR auto-detectado: $ADMIN_CIDR"
+          fi
+          : "${ADMIN_CIDR:?Define ADMIN_CIDR en .env}"
+
+          if [ "$ACTION" = "deploy" ]; then
+            aws sts get-caller-identity --profile "$AWS_PROFILE_B" >/dev/null
+
+            aws cloudformation deploy --profile "$AWS_PROFILE_B" --region "$AWS_REGION" \
+              --stack-name dt-stack-ufv \
+              --template-file cloudformation/stack-ufv.yaml \
+              --parameter-overrides KeyPairName="$KEY_PAIR_UFV" AdminCidr="$ADMIN_CIDR"
+          else
+            aws cloudformation delete-stack --profile "$AWS_PROFILE_B" --region "$AWS_REGION" --stack-name dt-stack-ufv || true
+          fi
+        '''
+      }
+    }
+
+    stage('Provision Alumno B') {
+      when {
+        expression { params.ACTION == 'deploy' }
+      }
+      steps {
+        sh '''
+          set -e
+          if [ -f .env ]; then
+            set -a
+            . ./.env
+            set +a
+          fi
+
+          INVENTORY=ansible/inventory/aws_inventory.sh
+          ansible-playbook -i $INVENTORY ansible/playbooks/update_inventory.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/configure_dns_clients.yml
+          ansible-playbook -i $INVENTORY ansible/playbooks/update_web.yml
+        '''
+      }
+    }
+  }
+}

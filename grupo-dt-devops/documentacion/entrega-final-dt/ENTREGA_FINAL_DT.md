@@ -26,9 +26,64 @@
 
 ### 1.2 Infraestructura en AWS
 
-- **Cuenta personal (`10.0.0.0/16`):** AD, LB, PostgreSQL, cliente Windows.
-- **Cuenta UFV (`10.1.0.0/16`):** Web01, Web02 y Web03.
+- **Cuenta Alumno A:** AD DS, DNS, DHCP, NTP y cliente Windows.
+- **Cuenta Alumno B:** Nginx LB y PostgreSQL.
+- **Cuenta Alumno C:** Web01 con `/profesores`.
+- **Cuenta Alumno D:** Web02 con `/alumnos`.
+- **Cuenta Alumno E:** Web03 con `/practicas`.
 - Integración intercuenta mediante **VPC peering + rutas cruzadas**.
+
+### 1.3 Diagrama global de arquitectura
+
+```mermaid
+flowchart LR
+  U[Usuario] --> LB[Nginx Load Balancer]
+
+  subgraph Identity[Identidad y directorio]
+    AD[Active Directory / DNS / DHCP / NTP]
+    WIN[Cliente Windows]
+  end
+
+  subgraph Apps[Aplicación web]
+    W1[Location /profesores]
+    W2[Location /alumnos]
+    W3[Location /practicas]
+  end
+
+  subgraph Data[Datos y ficheros]
+    DB[(PostgreSQL academico)]
+    S3[(S3)]
+  end
+
+  subgraph Net[Red privada]
+    VPC[VPCs]
+    PEER[Peering + rutas]
+    SG[Security Groups]
+  end
+
+  LB --> W1
+  LB --> W2
+  LB --> W3
+  W1 --> DB
+  W2 --> DB
+  W3 --> DB
+  W1 --> S3
+  W2 --> S3
+  W3 --> S3
+  AD --> WIN
+  AD -. DNS / NTP .-> LB
+  AD -. DNS / NTP .-> W1
+  AD -. DNS / NTP .-> W2
+  AD -. DNS / NTP .-> W3
+  VPC --> PEER --> SG
+  SG --> AD
+  SG --> LB
+  SG --> W1
+  SG --> W2
+  SG --> W3
+```
+
+**Idea para explicar:** la solución se divide por capas: identidad, red, balanceo, aplicación, base de datos y almacenamiento. Cada capa es independiente pero se conecta de forma privada y controlada para formar el sistema completo.
 
 ---
 
@@ -36,15 +91,18 @@
 
 ### 2.1 IaC
 
-- `cloudformation/stack-personal.yaml`
-- `cloudformation/stack-ufv.yaml`
+- `cloudformation/strict-5/stack-A-ad-client.yaml`
+- `cloudformation/strict-5/stack-B-lb-db.yaml`
+- `cloudformation/strict-5/stack-C-web-upstream1.yaml`
+- `cloudformation/strict-5/stack-D-web-upstream2.yaml`
+- `cloudformation/strict-5/stack-E-web-upstream3.yaml`
 
 Cobertura:
 - VPC, subredes y rutas.
 - Security groups por rol.
 - EC2 Windows/Linux.
 - EIP para instancias críticas.
-- Budget mensual en cuenta personal.
+- Budget mensual por cuenta de alumno.
 - IAM Role para acceso S3 desde webservers.
 
 ### 2.2 Pipeline
@@ -74,7 +132,7 @@ Cobertura:
 
 - [x] IAM (roles para S3 en webservers)
 - [x] Diseño de VPC y subredes pública/privada
-- [x] Budget en cuenta personal
+- [x] Budget por cuenta de alumno
 - [x] EC2 Windows + Linux
 - [x] Security Groups
 

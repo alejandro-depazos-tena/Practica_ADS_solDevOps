@@ -18,7 +18,7 @@ Arquitectura en cuentas individuales de 5 alumnos (modelo DT):
 
 Automatización:
 
-- IaC: `cloudformation/stack-personal.yaml`, `cloudformation/stack-ufv.yaml`
+- IaC: `cloudformation/strict-5/stack-A-ad-client.yaml`, `cloudformation/strict-5/stack-B-lb-db.yaml`, `cloudformation/strict-5/stack-C-web-upstream1.yaml`, `cloudformation/strict-5/stack-D-web-upstream2.yaml`, `cloudformation/strict-5/stack-E-web-upstream3.yaml`
 - Pipeline infra + peering: `jenkins/Jenkinsfile-infra`
 - Provisioning: playbooks en `ansible/playbooks/`
 
@@ -46,7 +46,7 @@ Debes tener configurados cinco perfiles en `~/.aws/credentials` y `~/.aws/config
 
 ### 1.2 Key Pairs
 
-Asegúrate de tener key pair en ambas cuentas (por ejemplo `aws` y `aws_ufv`).
+Asegúrate de tener key pair en cada cuenta de alumno.
 
 ### 1.3 Verificación rápida
 
@@ -65,10 +65,10 @@ Esta es la vía más completa porque ya incluye peering cross-account en el pipe
 
 Crea los 4 jobs Jenkins usando el script o manualmente:
 
-1. `AWS-UFV-CloudFormation-Deploy`
-2. `AWS-UFV-Ansible-Inventory-Build`
-3. `AWS-UFV-Ansible-App-Deploy`
-4. `AWS-UFV-Ansible-Web-Deploy`
+1. `AWS-Strict5-CloudFormation-Deploy`
+2. `AWS-Strict5-Ansible-Inventory-Build`
+3. `AWS-Strict5-Ansible-App-Deploy`
+4. `AWS-Strict5-Ansible-Web-Deploy`
 
 Referencias de pipeline:
 
@@ -81,7 +81,7 @@ Referencias de pipeline:
 
 ## 3) Despliegue de infraestructura (job 1)
 
-Lanza el job `AWS-UFV-CloudFormation-Deploy` con:
+Lanza el job `AWS-Strict5-CloudFormation-Deploy` con:
 
 - `ACTION=deploy`
 - `AWS_REGION=eu-south-2` (o la que uséis)
@@ -90,8 +90,7 @@ Lanza el job `AWS-UFV-CloudFormation-Deploy` con:
 
 ### 3.1 Qué hace automáticamente
 
-- Despliega `stack-personal`
-- Despliega `stack-ufv`
+- Despliega los stacks `A`, `B`, `C`, `D` y `E`
 - Crea/acepta peering entre cuentas
 - Inserta rutas en ambas VPC
 
@@ -105,14 +104,12 @@ Lanza el job `AWS-UFV-CloudFormation-Deploy` con:
 
 ## 4) Construir inventario y conectividad (job 2)
 
-Lanza `AWS-UFV-Ansible-Inventory-Build`.
+Lanza `AWS-Strict5-Ansible-Inventory-Build`.
 
 ### 4.1 Qué valida
 
 - Hosts detectados en grupos:
-  - `linux_personal`
-  - `linux_ufv`
-  - `windows_personal`
+  - perfiles/alojamientos de cada cuenta de alumno
   - `postgres`
   - `nginx`
 - Ping Linux OK
@@ -124,7 +121,7 @@ Si WinRM falla, corrígelo antes de continuar.
 
 ## 5) Provisioning de servicios (job 3)
 
-Lanza `AWS-UFV-Ansible-App-Deploy`.
+Lanza `AWS-Strict5-Ansible-App-Deploy`.
 
 ### 5.1 Opción recomendada
 
@@ -135,8 +132,7 @@ Ejecutar con `PLAYBOOK=all`.
 - AD/DNS/NTP base en Windows
 - DNS/NTP en Linux apuntando a AD
 - PostgreSQL + DB + esquema base + backup cron
-- Nginx LB + Nginx UFV
-- Node.js + `ufvNodeService`
+- Nginx LB + servicios Node.js por location
 
 ---
 
@@ -144,7 +140,7 @@ Ejecutar con `PLAYBOOK=all`.
 
 Cuando ya está todo desplegado, para cambios de app:
 
-- Lanzar `AWS-UFV-Ansible-Web-Deploy`
+- Lanzar `AWS-Strict5-Ansible-Web-Deploy`
 
 Esto actualiza estáticos y backend sin recrear infraestructura.
 
@@ -198,7 +194,7 @@ Esto elimina stacks (y en el pipeline también intenta limpiar peering).
 ### 9.4 API no responde
 
 - Revisar `ufvNodeService`
-- Revisar `nginx` en UFV y LB
+- Revisar `nginx` en LB y web servers
 - Revisar logs de systemd
 
 ---
@@ -215,7 +211,7 @@ Esto elimina stacks (y en el pipeline también intenta limpiar peering).
 
 ## 11) Archivos clave que debes tener a mano
 
-- Infra: `cloudformation/stack-personal.yaml`, `cloudformation/stack-ufv.yaml`
+- Infra: `cloudformation/strict-5/stack-A-ad-client.yaml`, `cloudformation/strict-5/stack-B-lb-db.yaml`, `cloudformation/strict-5/stack-C-web-upstream1.yaml`, `cloudformation/strict-5/stack-D-web-upstream2.yaml`, `cloudformation/strict-5/stack-E-web-upstream3.yaml`
 - CI/CD: `jenkins/Jenkinsfile-infra`
 - Provisioning: `ansible/playbooks/setup_ad_dns_ntp.yml`, `ansible/playbooks/deploy_app.yml`
 - Entrega: `documentacion/entrega-final-dt/ENTREGA_FINAL_DT.md`

@@ -1,9 +1,29 @@
 const express = require('express');
 const { Pool } = require('pg');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const path = require('path');
 
 const app = express();
 app.use(express.json());
+
+const s3 = new S3Client({ region: process.env.AWS_REGION || 'eu-south-2' });
+const S3_BUCKET = process.env.S3_BUCKET_NAME || 'dt-d-web-storage-544719091320-eu-south-2';
+
+async function guardarInscripcionS3(alumno_id, asignatura_id) {
+  const registro = {
+    alumno_id,
+    asignatura_id,
+    fecha: new Date().toISOString(),
+    modulo: 'alumnos'
+  };
+  const key = `inscripciones/alumno-${alumno_id}-asignatura-${asignatura_id}-${Date.now()}.json`;
+  await s3.send(new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+    Body: JSON.stringify(registro),
+    ContentType: 'application/json'
+  }));
+}
 
 const pool = new Pool({
   host: process.env.DB_HOST || '10.0.1.10',
@@ -83,6 +103,7 @@ app.post('/alumnos/inscribir', async (req, res) => {
       INSERT INTO academico.inscripciones (alumno_id, asignatura_id)
       VALUES ($1, $2)
     `, [alumno_id, asignatura_id]);
+    await guardarInscripcionS3(alumno_id, asignatura_id);
     res.status(201).json({ status: 'ok', message: 'Inscripcion realizada correctamente' });
   } catch (error) {
     if (error.code === '23505') {
