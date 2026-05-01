@@ -101,3 +101,35 @@ Campos obligatorios:
 - `vpcCidr`
 - `publicRouteTableId`
 - `privateRouteTableId`
+
+## Alumno C pendiente
+
+Para incluir a C en la prueba completa, C debe generar su export desde su equipo, donde exista el perfil `MarioC`:
+
+```powershell
+.\strict5-export-local-network-info.ps1 `
+  -AccountKey C `
+  -Profile MarioC `
+  -Stack dt-c-web-u1 `
+  -Region eu-south-2
+```
+
+Esto crea:
+
+```text
+exports/C.json
+```
+
+Despues hay que compartir ese archivo y fusionar:
+
+```powershell
+.\strict5-merge-exports-into-topology.ps1
+```
+
+Las IP privadas del modulo profesores ya preparadas son:
+
+```text
+C Web01: 10.30.1.48:80
+C Web02: 10.30.1.121:80
+Ruta: /profesores/
+```
