@@ -3,11 +3,11 @@
                      "A":  {
                                "profile":  "AlejandroA",
                                "stack":  "dt-a-ad-client",
-                               "accountId":  "",
-                               "vpcId":  "",
+                               "accountId":  "923371870350",
+                               "vpcId":  "vpc-072797988099a3551",
                                "vpcCidr":  "10.10.0.0/16",
-                               "publicRouteTableId":  "",
-                               "privateRouteTableId":  ""
+                               "publicRouteTableId":  "rtb-0a993ac51b6223d12",
+                               "privateRouteTableId":  "rtb-0be9fb340b531e974"
                            },
                      "B":  {
                                "profile":  "NicolasB",

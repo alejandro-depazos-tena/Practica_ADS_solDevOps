@@ -37,6 +37,32 @@ Alumno E:
 .\run-E-peering.ps1 -WhatIfOnly
 ```
 
+## Prueba parcial sin C
+
+Si falta `C.json`, se puede practicar con A, B, D y E usando:
+
+```text
+strict5-team-topology-no-C.json
+```
+
+Orden recomendado:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run-A-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json -WhatIfOnly
+powershell -ExecutionPolicy Bypass -File .\run-B-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json -WhatIfOnly
+powershell -ExecutionPolicy Bypass -File .\run-D-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json -WhatIfOnly
+powershell -ExecutionPolicy Bypass -File .\run-E-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json -WhatIfOnly
+```
+
+Para aplicar de verdad, ejecutar en este orden:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run-A-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json
+powershell -ExecutionPolicy Bypass -File .\run-B-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json
+powershell -ExecutionPolicy Bypass -File .\run-D-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json
+powershell -ExecutionPolicy Bypass -File .\run-E-peering.ps1 -TopologyFile .\strict5-team-topology-no-C.json
+```
+
 ## Aplicar
 
 Alumno E:
@@ -75,4 +101,3 @@ Campos obligatorios:
 - `vpcCidr`
 - `publicRouteTableId`
 - `privateRouteTableId`
-
