@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { Pool } = require('pg');
+const AWS = require('aws-sdk');
 
 const app = express();
 app.use(express.json());
@@ -8,6 +9,9 @@ app.use(express.json());
 const PORT = process.env.PORT || 3001;
 const SERVER_LABEL = process.env.SERVER_LABEL || 'Web E';
 const PRIVATE_IP = process.env.PRIVATE_IP || '10.50.x.x';
+const AWS_REGION = process.env.AWS_REGION || 'eu-south-2';
+const S3_BUCKET = process.env.S3_BUCKET_NAME || 'dt-e-web-storage-906985802888-eu-south-2';
+const s3 = new AWS.S3({ region: AWS_REGION });
 
 const pool = new Pool({
   host: process.env.DB_HOST || '10.20.1.221',
@@ -100,9 +104,15 @@ app.get('/practicas/resumen', async (req, res) => {
     const result = await pool.query(`
       SELECT
         COUNT(*) AS total_practicas,
-        COUNT(*) FILTER (WHERE LOWER(COALESCE(estado, '')) LIKE '%entreg%') AS entregadas,
+        COUNT(*) FILTER (
+          WHERE LOWER(COALESCE(estado, '')) LIKE '%entreg%'
+             OR LOWER(COALESCE(estado, '')) LIKE '%complet%'
+        ) AS entregadas,
         COUNT(*) FILTER (WHERE calificacion IS NOT NULL) AS calificadas,
-        COUNT(*) FILTER (WHERE LOWER(COALESCE(estado, '')) NOT LIKE '%entreg%') AS pendientes
+        COUNT(*) FILTER (
+          WHERE LOWER(COALESCE(estado, '')) NOT LIKE '%entreg%'
+            AND LOWER(COALESCE(estado, '')) NOT LIKE '%complet%'
+        ) AS pendientes
       FROM practicas
     `);
 
@@ -116,6 +126,53 @@ app.get('/practicas/resumen', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.get('/practicas/s3/status', async (req, res) => {
+  try {
+    const output = await s3.listObjectsV2({
+      Bucket: S3_BUCKET,
+      Prefix: 'practicas/',
+      MaxKeys: 10,
+    }).promise();
+
+    res.status(200).json({
+      status: 'ok',
+      bucket: S3_BUCKET,
+      region: AWS_REGION,
+      objects: (output.Contents || []).map((item) => ({
+        key: item.Key,
+        size: item.Size,
+        last_modified: item.LastModified,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', bucket: S3_BUCKET, message: error.message });
+  }
+});
+
+app.post('/practicas/evidencias', async (req, res) => {
+  const key = 'practicas/evidencias/evidencia-' + Date.now() + '.json';
+  const body = {
+    modulo: 'practicas',
+    server: SERVER_LABEL,
+    private_ip: PRIVATE_IP,
+    created_at: new Date().toISOString(),
+    data: req.body && Object.keys(req.body).length ? req.body : { accion: 'prueba-integracion-s3' },
+  };
+
+  try {
+    await s3.putObject({
+      Bucket: S3_BUCKET,
+      Key: key,
+      Body: JSON.stringify(body, null, 2),
+      ContentType: 'application/json',
+    }).promise();
+
+    res.status(201).json({ status: 'ok', bucket: S3_BUCKET, key: key });
+  } catch (error) {
+    res.status(500).json({ status: 'error', bucket: S3_BUCKET, message: error.message });
   }
 });
 

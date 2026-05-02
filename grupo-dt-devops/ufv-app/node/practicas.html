@@ -26,7 +26,10 @@
     .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 0.78rem; font-weight: bold; }
     .muted { color: #64748b; }
     .msg { padding: 12px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-bottom: 14px; font-size: 0.9rem; }
+    .ok { background: #dcfce7; color: #166534; }
     .empty { color: #64748b; font-style: italic; }
+    .button { border: 0; border-radius: 6px; background: #164e63; color: white; padding: 9px 14px; cursor: pointer; font-weight: bold; }
+    .button:hover { background: #0f3a4a; }
     @media (max-width: 760px) {
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       header { padding: 18px 16px; }
@@ -51,7 +54,7 @@
 
     <section class="grid">
       <div class="metric"><span>Practicas</span><strong id="total-practicas">-</strong></div>
-      <div class="metric"><span>Entregadas</span><strong id="entregadas">-</strong></div>
+      <div class="metric"><span>Completadas</span><strong id="entregadas">-</strong></div>
       <div class="metric"><span>Calificadas</span><strong id="calificadas">-</strong></div>
       <div class="metric"><span>Pendientes</span><strong id="pendientes">-</strong></div>
     </section>
@@ -74,6 +77,13 @@
         </thead>
         <tbody><tr><td colspan="8" class="empty">Cargando practicas desde PostgreSQL...</td></tr></tbody>
       </table>
+    </section>
+
+    <section class="card">
+      <h2>Integracion S3</h2>
+      <div id="msg-s3" class="empty">Comprobando bucket S3...</div>
+      <p class="muted" id="s3-objects" style="margin: 12px 0;"></p>
+      <button class="button" type="button" onclick="crearEvidenciaS3()">Crear evidencia</button>
     </section>
   </main>
 
@@ -125,6 +135,43 @@
       `).join('');
     }
 
+    async function cargarS3() {
+      try {
+        const res = await fetch('/practicas/s3/status');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al consultar S3');
+        document.getElementById('msg-s3').className = 'msg ok';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>S3 operativo:</strong> ' + data.bucket;
+        document.getElementById('s3-objects').textContent =
+          'Objetos encontrados en practicas/: ' + data.objects.length;
+      } catch (error) {
+        document.getElementById('msg-s3').className = 'msg';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>Error S3:</strong> ' + error.message;
+      }
+    }
+
+    async function crearEvidenciaS3() {
+      try {
+        const res = await fetch('/practicas/evidencias', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ origen: 'frontend-practicas' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error creando evidencia');
+        document.getElementById('msg-s3').className = 'msg ok';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>Evidencia creada en S3:</strong> ' + data.key;
+        await cargarS3();
+      } catch (error) {
+        document.getElementById('msg-s3').className = 'msg';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>Error creando evidencia:</strong> ' + error.message;
+      }
+    }
+
     async function cargarTodo() {
       try {
         await cargarResumen();
@@ -135,6 +182,7 @@
         document.querySelector('#tabla-practicas tbody').innerHTML =
           '<tr><td colspan="8" class="empty">La web esta desplegada, pero la BBDD aun no acepta la conexion.</td></tr>';
       }
+      await cargarS3();
     }
 
     cargarTodo();
