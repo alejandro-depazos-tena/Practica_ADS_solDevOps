@@ -12,20 +12,30 @@
     header p { color: #ccfbf1; font-size: 0.92rem; }
     header a { color: #99f6e4; font-size: 0.9rem; text-decoration: none; display: inline-block; margin-top: 8px; }
     .container { max-width: 1040px; margin: 28px auto; padding: 0 16px; }
-    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
-    .metric, .card { background: white; border: 1px solid #d7e4e1; border-radius: 8px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .metric, .card, .panel { background: white; border: 1px solid #d7e4e1; border-radius: 8px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
     .metric { padding: 16px; }
     .metric span { display: block; color: #5a6b75; font-size: 0.8rem; margin-bottom: 8px; }
     .metric strong { color: #0f766e; font-size: 1.7rem; }
     .card { padding: 22px; margin-bottom: 22px; }
+    .panel { padding: 18px; margin-bottom: 22px; }
     h2 { font-size: 1.05rem; color: #0f766e; border-bottom: 2px solid #ccfbf1; padding-bottom: 8px; margin-bottom: 16px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     th { background: #ccfbf1; color: #0f766e; padding: 10px; text-align: left; }
     td { padding: 10px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
     tr:hover td { background: #f8fafc; }
     .msg { padding: 10px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-bottom: 12px; font-size: 0.9rem; }
+    .success { background: #dcfce7; color: #166534; }
     .empty { color: #64748b; font-style: italic; }
     .muted { color: #6b7280; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .form-row { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 0.85rem; color: #334155; }
+    input, select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; }
+    .actions { display: flex; gap: 10px; margin-top: 12px; }
+    button { border: none; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #0f766e; color: #ecfeff; }
+    .btn-ghost { background: #e2e8f0; color: #0f172a; }
     @media (max-width: 900px) {
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       header { padding: 16px; }
@@ -46,57 +56,76 @@
 
   <main class="container">
     <section class="grid">
-      <div class="metric"><span>Asignaturas</span><strong id="total-asignaturas">-</strong></div>
-      <div class="metric"><span>Inscripciones</span><strong id="total-inscripciones">-</strong></div>
-      <div class="metric"><span>Nota media</span><strong id="nota-media">-</strong></div>
-      <div class="metric"><span>Estado del modulo</span><strong id="estado-modulo">-</strong></div>
+      <div class="metric"><span>Profesores</span><strong id="total-profesores">-</strong></div>
+      <div class="metric"><span>Departamentos</span><strong id="total-departamentos">-</strong></div>
+      <div class="metric"><span>Especialidades</span><strong id="total-especialidades">-</strong></div>
+    </section>
+
+    <section class="panel">
+      <h2>Alta de profesor</h2>
+      <div id="msg-alta"></div>
+      <form id="form-profesor" class="form-grid">
+        <div class="form-row">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" type="text" placeholder="Nombre completo" required />
+        </div>
+        <div class="form-row">
+          <label for="apellido">Apellido</label>
+          <input id="apellido" name="apellido" type="text" placeholder="Apellido" required />
+        </div>
+        <div class="form-row">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="correo@ufv.es" required />
+        </div>
+        <div class="form-row">
+          <label for="departamento">Departamento</label>
+          <input id="departamento" name="departamento" type="text" placeholder="Departamento" required />
+        </div>
+        <div class="form-row">
+          <label for="especialidad">Especialidad</label>
+          <input id="especialidad" name="especialidad" type="text" placeholder="Especialidad" required />
+        </div>
+      </form>
+      <div class="actions">
+        <button class="btn-primary" id="btn-guardar" type="button">Guardar profesor</button>
+        <button class="btn-ghost" id="btn-limpiar" type="button">Limpiar</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Filtros</h2>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="filtro-departamento">Departamento</label>
+          <input id="filtro-departamento" type="text" placeholder="Filtrar por departamento" />
+        </div>
+        <div class="form-row">
+          <label for="filtro-especialidad">Especialidad</label>
+          <input id="filtro-especialidad" type="text" placeholder="Filtrar por especialidad" />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn-primary" id="btn-filtrar" type="button">Aplicar filtros</button>
+        <button class="btn-ghost" id="btn-reset" type="button">Quitar filtros</button>
+      </div>
     </section>
 
     <section class="card">
-      <h2>Catalogo de asignaturas</h2>
-      <div id="msg-asignaturas"></div>
-      <table id="tabla-asignaturas">
+      <h2>Profesores registrados</h2>
+      <div id="msg-profesores"></div>
+      <table id="tabla-profesores">
         <thead>
           <tr>
             <th>ID</th>
-            <th>Asignatura</th>
-            <th>Descripcion</th>
-            <th>Creditos</th>
-            <th>Inscritos</th>
-            <th>Nota media</th>
-          </tr>
-        </thead>
-        <tbody><tr><td colspan="6" class="empty">Cargando asignaturas...</td></tr></tbody>
-      </table>
-    </section>
-
-    <section class="card">
-      <h2>Ultimas inscripciones</h2>
-      <div id="msg-inscripciones"></div>
-      <table id="tabla-inscripciones">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Alumno</th>
+            <th>Nombre</th>
             <th>Email</th>
-            <th>Asignatura</th>
-            <th>Nota</th>
+            <th>Departamento</th>
+            <th>Especialidad</th>
+            <th>Fecha alta</th>
           </tr>
         </thead>
-        <tbody><tr><td colspan="5" class="empty">Cargando inscripciones...</td></tr></tbody>
+        <tbody><tr><td colspan="6" class="empty">Cargando profesores...</td></tr></tbody>
       </table>
-    </section>
-
-    <section class="card">
-      <h2>Ultimos objetos en S3 (<span id="total-objetos">-</span>)</h2>
-      <div id="msg-s3"></div>
-      <table id="tabla-s3">
-        <thead>
-          <tr><th>Clave</th><th>Tamano</th><th>Ultima actualizacion</th></tr>
-        </thead>
-        <tbody><tr><td colspan="3" class="empty">Cargando objetos...</td></tr></tbody>
-      </table>
-      <p class="muted" style="margin-top:12px;">Si S3 no esta configurado, este bloque mostrara un aviso.</p>
     </section>
   </main>
 
@@ -105,24 +134,9 @@
       document.getElementById(id).textContent = value ?? '-';
     }
 
-    function formatNota(value) {
-      if (value === null || value === undefined) return '-';
-      const num = Number(value);
-      if (Number.isNaN(num)) return '-';
-      return num.toFixed(2);
-    }
-
     function formatDate(value) {
       if (!value) return '-';
-      return new Date(value).toLocaleString('es-ES');
-    }
-
-    function formatSize(bytes) {
-      if (bytes === 0) return '0 B';
-      if (!bytes) return '-';
-      const units = ['B', 'KB', 'MB', 'GB'];
-      const idx = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-      return (bytes / Math.pow(1024, idx)).toFixed(1) + ' ' + units[idx];
+      return new Date(value).toLocaleDateString('es-ES');
     }
 
     async function cargarResumen() {
@@ -130,111 +144,103 @@
         const res = await fetch('/profesores/resumen');
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Error al cargar resumen');
-        setText('total-asignaturas', data.total_asignaturas);
-        setText('total-inscripciones', data.total_inscripciones);
-        setText('nota-media', formatNota(data.nota_media));
+        setText('total-profesores', data.total_profesores);
+        setText('total-departamentos', data.departamentos);
+        setText('total-especialidades', data.especialidades);
       } catch (error) {
-        setText('total-asignaturas', '-');
-        setText('total-inscripciones', '-');
-        setText('nota-media', '-');
+        setText('total-profesores', '-');
+        setText('total-departamentos', '-');
+        setText('total-especialidades', '-');
       }
     }
 
-    async function cargarAsignaturas() {
-      try {
-        const res = await fetch('/profesores/asignaturas');
-        const data = await res.json();
-        const tbody = document.querySelector('#tabla-asignaturas tbody');
-        if (!data.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay asignaturas disponibles.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.map((a) => `
-          <tr>
-            <td>${a.id}</td>
-            <td>${a.nombre || '-'}</td>
-            <td class="muted">${a.descripcion || '-'}</td>
-            <td>${a.creditos ?? '-'}</td>
-            <td>${a.inscritos ?? 0}</td>
-            <td>${formatNota(a.nota_media)}</td>
-          </tr>
-        `).join('');
-      } catch (error) {
-        document.getElementById('msg-asignaturas').innerHTML = '<div class="msg">Error al cargar asignaturas: ' + error.message + '</div>';
-      }
+    function setFormMessage(targetId, message, isSuccess) {
+      const node = document.getElementById(targetId);
+      node.innerHTML = message ? `<div class="msg ${isSuccess ? 'success' : ''}">${message}</div>` : '';
     }
 
-    async function cargarInscripciones() {
+    function buildQuery() {
+      const params = new URLSearchParams();
+      const departamento = document.getElementById('filtro-departamento').value.trim();
+      const especialidad = document.getElementById('filtro-especialidad').value.trim();
+      if (departamento) params.set('departamento', departamento);
+      if (especialidad) params.set('especialidad', especialidad);
+      return params.toString();
+    }
+
+    async function cargarProfesores() {
       try {
-        const res = await fetch('/profesores/inscripciones');
+        const query = buildQuery();
+        const url = query ? `/profesores/lista?${query}` : '/profesores/lista';
+        const res = await fetch(url);
         const data = await res.json();
-        const tbody = document.querySelector('#tabla-inscripciones tbody');
+        const tbody = document.querySelector('#tabla-profesores tbody');
         if (!data.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay inscripciones disponibles.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay profesores con esos filtros.</td></tr>';
           return;
         }
         tbody.innerHTML = data.map((item) => `
           <tr>
             <td>${item.id}</td>
-            <td>${item.alumno_nombre || '-'}</td>
-            <td>${item.alumno_email || '-'}</td>
-            <td>${item.asignatura || '-'}</td>
-            <td>${formatNota(item.nota)}</td>
+            <td>${item.nombre || '-'}</td>
+            <td>${item.email || '-'}</td>
+            <td>${item.departamento || '-'}</td>
+            <td>${item.especialidad || '-'}</td>
+            <td>${formatDate(item.fecha_alta)}</td>
           </tr>
         `).join('');
       } catch (error) {
-        document.getElementById('msg-inscripciones').innerHTML = '<div class="msg">Error al cargar inscripciones: ' + error.message + '</div>';
+        document.getElementById('msg-profesores').innerHTML = '<div class="msg">Error al cargar profesores: ' + error.message + '</div>';
       }
     }
 
-    async function cargarS3() {
+    async function crearProfesor() {
       try {
-        const res = await fetch('/s3/objects');
-        const data = await res.json();
-        if (!res.ok) {
-          document.getElementById('msg-s3').innerHTML = '<div class="msg">' + (data.message || 'S3 no disponible') + '</div>';
-          setText('total-objetos', '-');
+        const payload = {
+          nombre: document.getElementById('nombre').value.trim(),
+          apellido: document.getElementById('apellido').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          departamento: document.getElementById('departamento').value.trim(),
+          especialidad: document.getElementById('especialidad').value.trim(),
+        };
+
+        if (!payload.nombre || !payload.apellido || !payload.email || !payload.departamento || !payload.especialidad) {
+          setFormMessage('msg-alta', 'Completa todos los campos para dar de alta un profesor.', false);
           return;
         }
-        const objects = data.objects || [];
-        const tbody = document.querySelector('#tabla-s3 tbody');
-        if (!objects.length) {
-          tbody.innerHTML = '<tr><td colspan="3" class="empty">No hay objetos en el bucket.</td></tr>';
-        } else {
-          tbody.innerHTML = objects.map((o) => `
-            <tr>
-              <td>${o.key}</td>
-              <td>${formatSize(o.size)}</td>
-              <td>${formatDate(o.lastModified)}</td>
-            </tr>
-          `).join('');
-        }
-        setText('total-objetos', objects.length);
+
+        const res = await fetch('/profesores/nuevo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al crear profesor');
+
+        setFormMessage('msg-alta', 'Profesor creado con ID ' + data.id + '.', true);
+        document.getElementById('form-profesor').reset();
+        await cargarResumen();
+        await cargarProfesores();
       } catch (error) {
-        document.getElementById('msg-s3').innerHTML = '<div class="msg">Error al consultar S3: ' + error.message + '</div>';
-        setText('total-objetos', '-');
+        setFormMessage('msg-alta', error.message, false);
       }
     }
 
-    async function cargarHealth() {
-      try {
-        const res = await fetch('/health');
-        if (!res.ok) {
-          setText('estado-modulo', 'KO');
-          return;
-        }
-        const data = await res.json();
-        setText('estado-modulo', data.status === 'ok' ? 'OK' : 'KO');
-      } catch (error) {
-        setText('estado-modulo', 'KO');
-      }
-    }
+    document.getElementById('btn-guardar').addEventListener('click', crearProfesor);
+    document.getElementById('btn-limpiar').addEventListener('click', () => {
+      document.getElementById('form-profesor').reset();
+      setFormMessage('msg-alta', '', false);
+    });
+    document.getElementById('btn-filtrar').addEventListener('click', cargarProfesores);
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      document.getElementById('filtro-departamento').value = '';
+      document.getElementById('filtro-especialidad').value = '';
+      cargarProfesores();
+    });
 
     cargarResumen();
-    cargarAsignaturas();
-    cargarInscripciones();
-    cargarS3();
-    cargarHealth();
+    cargarProfesores();
   </script>
 </body>
 </html>

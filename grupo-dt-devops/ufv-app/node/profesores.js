@@ -1,90 +1,97 @@
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
-const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 
 const app = express();
 app.use(express.json());
 
-const pool = new Pool({
-  host: process.env.DB_HOST || '10.0.1.10',
-  user: process.env.DB_USER || 'backend_read',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'academico',
-  port: 5432,
+const dbConfig = {
+  host: process.env.DB_HOST || '10.20.1.221',
+  port: Number(process.env.DB_PORT || 5432),
+  database: process.env.DB_NAME || 'DB_UFV',
+};
+
+const readPool = new Pool({
+  ...dbConfig,
+  user: process.env.DB_USER || process.env.DB_USER_READ || 'backend_read',
+  password: process.env.DB_PASSWORD || process.env.DB_PASSWORD_READ || 'PassRead1!',
 });
 
-const s3BucketName = process.env.S3_BUCKET_NAME;
-const s3Client = new S3Client({});
-
-app.get('/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.status(200).json({ status: 'ok' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
+const writePool = new Pool({
+  ...dbConfig,
+  user: process.env.DB_WRITE_USER || process.env.DB_USER_WRITE || process.env.DB_USER || 'backend_write',
+  password: process.env.DB_WRITE_PASSWORD || process.env.DB_PASSWORD_WRITE || process.env.DB_PASSWORD,
 });
 
-app.get('/profesores', (req, res) => {
+const PORT = process.env.PORT || 3001;
+const SERVER_LABEL = process.env.SERVER_LABEL || 'Web C';
+const PRIVATE_IP = process.env.PRIVATE_IP || '10.30.x.x';
+
+app.get(['/profesores', '/profesores/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'profesores.html'));
 });
 
-async function getAsignaturas() {
-  const result = await pool.query(`
-    SELECT
-      a.id,
-      a.nombre,
-      a.descripcion,
-      a.creditos,
-      a.fecha_creacion,
-      COUNT(i.id) AS inscritos,
-      ROUND(AVG(i.nota)::numeric, 2) AS nota_media
-    FROM academico.asignaturas a
-    LEFT JOIN academico.inscripciones i ON i.asignatura_id = a.id
-    GROUP BY a.id, a.nombre, a.descripcion, a.creditos, a.fecha_creacion
-    ORDER BY a.id
-    LIMIT 50
-  `);
+async function handleHealth(req, res) {
+  try {
+    await readPool.query('SELECT 1');
+    res.status(200).json({
+      status: 'ok',
+      module: 'profesores',
+      server: SERVER_LABEL,
+      private_ip: PRIVATE_IP,
+      db_host: dbConfig.host,
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', module: 'profesores', message: error.message });
+  }
+}
+
+app.get('/health', handleHealth);
+app.get('/profesores/health', handleHealth);
+
+function buildFilters(query) {
+  const conditions = [];
+  const values = [];
+
+  if (query.departamento) {
+    values.push(query.departamento);
+    conditions.push(`departamento = $${values.length}`);
+  }
+
+  if (query.especialidad) {
+    values.push(query.especialidad);
+    conditions.push(`especialidad = $${values.length}`);
+  }
+
+  return { conditions, values };
+}
+
+async function loadProfesores(query) {
+  const { conditions, values } = buildFilters(query);
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const result = await readPool.query(`
+    SELECT id, nombre, email, departamento, especialidad, fecha_alta
+    FROM profesores
+    ${where}
+    ORDER BY id
+    LIMIT 100
+  `, values);
 
   return result.rows;
 }
 
-app.get('/profesores/asignaturas', async (req, res) => {
-  try {
-    res.json(await getAsignaturas());
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-});
-
 app.get('/profesores/lista', async (req, res) => {
   try {
-    res.json(await getAsignaturas());
+    res.status(200).json(await loadProfesores(req.query));
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
-app.get('/profesores/inscripciones', async (req, res) => {
+app.get('/profesores/buscar', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT
-        i.id,
-        i.nota,
-        i.alumno_id,
-        i.asignatura_id,
-        a.nombre AS asignatura,
-        al.nombre AS alumno_nombre,
-        al.email AS alumno_email
-      FROM academico.inscripciones i
-      JOIN academico.asignaturas a ON a.id = i.asignatura_id
-      JOIN academico.alumnos al ON al.id = i.alumno_id
-      ORDER BY i.id DESC
-      LIMIT 50
-    `);
-
-    res.json(result.rows);
+    res.status(200).json(await loadProfesores(req.query));
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
@@ -92,57 +99,49 @@ app.get('/profesores/inscripciones', async (req, res) => {
 
 app.get('/profesores/resumen', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const result = await readPool.query(`
       SELECT
-        COUNT(*) AS total_asignaturas,
-        (SELECT COUNT(*) FROM academico.inscripciones) AS total_inscripciones,
-        ROUND(AVG(i.nota)::numeric, 2) AS nota_media
-      FROM academico.asignaturas a
-      LEFT JOIN academico.inscripciones i ON i.asignatura_id = a.id
+        COUNT(*) AS total_profesores,
+        COUNT(DISTINCT departamento) AS departamentos,
+        COUNT(DISTINCT especialidad) AS especialidades
+      FROM profesores
     `);
 
     const row = result.rows[0] || {};
     res.status(200).json({
-      total_asignaturas: Number(row.total_asignaturas || 0),
-      total_inscripciones: Number(row.total_inscripciones || 0),
-      nota_media: row.nota_media,
+      total_profesores: Number(row.total_profesores || 0),
+      departamentos: Number(row.departamentos || 0),
+      especialidades: Number(row.especialidades || 0),
+      server: SERVER_LABEL,
+      private_ip: PRIVATE_IP,
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
-app.get('/s3/objects', async (req, res) => {
-  if (!s3BucketName) {
-    return res.status(400).json({
-      status: 'error',
-      message: 'S3_BUCKET_NAME no configurado en el entorno del servicio',
-    });
-  }
-
+app.post('/profesores/nuevo', async (req, res) => {
   try {
-    const output = await s3Client.send(new ListObjectsV2Command({
-      Bucket: s3BucketName,
-      MaxKeys: 20,
-    }));
+    const { nombre, apellido, email, departamento, especialidad } = req.body;
+    if (!nombre || !apellido || !email || !departamento || !especialidad) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'nombre, apellido, email, departamento y especialidad son obligatorios',
+      });
+    }
 
-    const objects = (output.Contents || []).map((item) => ({
-      key: item.Key,
-      size: item.Size,
-      lastModified: item.LastModified,
-    }));
+    const result = await writePool.query(`
+      INSERT INTO profesores (nombre, apellido, email, departamento, especialidad)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `, [nombre, apellido, email, departamento, especialidad]);
 
-    return res.status(200).json({
-      status: 'ok',
-      bucket: s3BucketName,
-      objects,
-    });
+    res.status(201).json({ status: 'ok', id: result.rows[0].id });
   } catch (error) {
-    return res.status(500).json({ status: 'error', message: error.message });
+    res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
-const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`UFV node service listening on ${PORT}`);
+  console.log(`UFV profesores service listening on ${PORT}`);
 });
