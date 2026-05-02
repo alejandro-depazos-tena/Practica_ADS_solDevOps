@@ -3,33 +3,33 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Modulo Practicas - Portal Academico UFV</title>
+  <title>Modulo Practicas - DB_UFV</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #f5f7fb; color: #243040; }
-    header { background: #164e63; color: white; padding: 18px 32px; }
-    header h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    body { font-family: Arial, sans-serif; background: #f4f7fb; color: #1f2937; }
+    header { background: #164e63; color: white; padding: 24px 32px; }
+    header h1 { font-size: 1.5rem; margin-bottom: 6px; }
     header p { color: #cffafe; font-size: 0.92rem; }
-    header a { color: #a5f3fc; font-size: 0.9rem; text-decoration: none; display: inline-block; margin-top: 8px; }
-    .container { max-width: 1040px; margin: 28px auto; padding: 0 16px; }
+    .container { max-width: 1180px; margin: 28px auto; padding: 0 16px; }
     .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
-    .metric, .card { background: white; border: 1px solid #dbe4ef; border-radius: 8px; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
-    .metric { padding: 16px; }
-    .metric span { display: block; color: #607086; font-size: 0.8rem; margin-bottom: 8px; }
-    .metric strong { color: #164e63; font-size: 1.7rem; }
-    .card { padding: 22px; margin-bottom: 22px; }
-    h2 { font-size: 1.05rem; color: #164e63; border-bottom: 2px solid #e0f2fe; padding-bottom: 8px; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .metric, .card, .server { background: white; border: 1px solid #dbe4ef; border-radius: 8px; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+    .metric { padding: 18px; }
+    .metric span { display: block; color: #64748b; font-size: 0.82rem; margin-bottom: 8px; }
+    .metric strong { color: #164e63; font-size: 1.8rem; }
+    .server { padding: 14px 18px; margin-bottom: 22px; background: #0f172a; color: #e2e8f0; }
+    .card { padding: 22px; margin-bottom: 22px; overflow-x: auto; }
+    h2 { color: #164e63; font-size: 1.1rem; border-bottom: 2px solid #e0f2fe; padding-bottom: 8px; margin-bottom: 16px; }
+    table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.9rem; }
     th { background: #e0f2fe; color: #164e63; padding: 10px; text-align: left; }
     td { padding: 10px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
     tr:hover td { background: #f8fafc; }
     .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 0.78rem; font-weight: bold; }
     .muted { color: #64748b; }
-    .msg { padding: 10px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-bottom: 12px; font-size: 0.9rem; }
+    .msg { padding: 12px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-bottom: 14px; font-size: 0.9rem; }
     .empty { color: #64748b; font-style: italic; }
     @media (max-width: 760px) {
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      header { padding: 16px; }
+      header { padding: 18px 16px; }
       table { font-size: 0.82rem; }
       th, td { padding: 8px; }
     }
@@ -38,116 +38,106 @@
 <body>
   <header>
     <h1>Portal Academico UFV - Modulo Practicas</h1>
-    <p>Alumno E · Upstream /practicas · Grupo DT</p>
-    <a href="/">Volver al inicio</a>
+    <p>Alumno E - datos reales desde PostgreSQL de Alumno B</p>
   </header>
 
   <main class="container">
+    <div class="server">
+      Servidor: <strong id="server">-</strong> |
+      IP privada: <strong id="private-ip">-</strong> |
+      Base de datos: <strong>DB_UFV</strong> |
+      Tabla: <strong>practicas</strong>
+    </div>
+
     <section class="grid">
       <div class="metric"><span>Practicas</span><strong id="total-practicas">-</strong></div>
-      <div class="metric"><span>Entregas</span><strong id="total-entregas">-</strong></div>
-      <div class="metric"><span>Completadas</span><strong id="entregas-completadas">-</strong></div>
-      <div class="metric"><span>Alumnos activos</span><strong id="alumnos-entregas">-</strong></div>
+      <div class="metric"><span>Entregadas</span><strong id="entregadas">-</strong></div>
+      <div class="metric"><span>Calificadas</span><strong id="calificadas">-</strong></div>
+      <div class="metric"><span>Pendientes</span><strong id="pendientes">-</strong></div>
     </section>
 
     <section class="card">
-      <h2>Catalogo de practicas</h2>
+      <h2>Practicas registradas</h2>
       <div id="msg-practicas"></div>
       <table id="tabla-practicas">
         <thead>
-          <tr><th>ID</th><th>Titulo</th><th>Asignatura</th><th>Descripcion</th><th>Entregas</th></tr>
+          <tr>
+            <th>ID</th>
+            <th>Titulo</th>
+            <th>Descripcion</th>
+            <th>Alumno</th>
+            <th>Profesor</th>
+            <th>Fecha entrega</th>
+            <th>Calificacion</th>
+            <th>Estado</th>
+          </tr>
         </thead>
-        <tbody><tr><td colspan="5" class="empty">Cargando practicas...</td></tr></tbody>
-      </table>
-    </section>
-
-    <section class="card">
-      <h2>Ultimas entregas</h2>
-      <div id="msg-entregas"></div>
-      <table id="tabla-entregas">
-        <thead>
-          <tr><th>ID</th><th>Practica</th><th>Alumno</th><th>Estado</th><th>Fecha</th></tr>
-        </thead>
-        <tbody><tr><td colspan="5" class="empty">Cargando entregas...</td></tr></tbody>
+        <tbody><tr><td colspan="8" class="empty">Cargando practicas desde PostgreSQL...</td></tr></tbody>
       </table>
     </section>
   </main>
 
   <script>
     function setText(id, value) {
-      document.getElementById(id).textContent = value ?? '0';
+      document.getElementById(id).textContent = value == null ? '0' : value;
     }
 
     function formatDate(value) {
       if (!value) return '-';
-      return new Date(value).toLocaleString('es-ES');
+      return new Date(value).toLocaleDateString('es-ES');
     }
 
     async function cargarResumen() {
-      try {
-        const res = await fetch('/practicas/resumen');
-        const data = await res.json();
-        setText('total-practicas', data.total_practicas);
-        setText('total-entregas', data.total_entregas);
-        setText('entregas-completadas', data.entregas_completadas);
-        setText('alumnos-entregas', data.alumnos_con_entregas);
-      } catch (error) {
-        setText('total-practicas', '-');
-        setText('total-entregas', '-');
-        setText('entregas-completadas', '-');
-        setText('alumnos-entregas', '-');
-      }
+      const res = await fetch('/practicas/resumen');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al cargar resumen');
+
+      setText('total-practicas', data.total_practicas);
+      setText('entregadas', data.entregadas);
+      setText('calificadas', data.calificadas);
+      setText('pendientes', data.pendientes);
+      document.getElementById('server').textContent = data.server || '-';
+      document.getElementById('private-ip').textContent = data.private_ip || '-';
     }
 
     async function cargarPracticas() {
+      const res = await fetch('/practicas/lista');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al cargar practicas');
+
+      const tbody = document.querySelector('#tabla-practicas tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No hay practicas registradas.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map((p) => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.titulo || '-'}</td>
+          <td class="muted">${p.descripcion || '-'}</td>
+          <td>${p.alumno || '-'}</td>
+          <td>${p.profesor || '-'}</td>
+          <td>${formatDate(p.fecha_entrega)}</td>
+          <td>${p.calificacion == null ? '-' : p.calificacion}</td>
+          <td><span class="badge">${p.estado || 'sin estado'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function cargarTodo() {
       try {
-        const res = await fetch('/practicas/lista');
-        const data = await res.json();
-        const tbody = document.querySelector('#tabla-practicas tbody');
-        if (!data.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay practicas registradas.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.map((p) => `
-          <tr>
-            <td>${p.id}</td>
-            <td>${p.titulo}</td>
-            <td>${p.asignatura}</td>
-            <td class="muted">${p.descripcion || '-'}</td>
-            <td>${p.entregas_completadas}/${p.entregas_registradas}</td>
-          </tr>
-        `).join('');
+        await cargarResumen();
+        await cargarPracticas();
       } catch (error) {
-        document.getElementById('msg-practicas').innerHTML = '<div class="msg">Error al cargar practicas: ' + error.message + '</div>';
+        document.getElementById('msg-practicas').innerHTML =
+          '<div class="msg"><strong>Error conectando con PostgreSQL:</strong> ' + error.message + '</div>';
+        document.querySelector('#tabla-practicas tbody').innerHTML =
+          '<tr><td colspan="8" class="empty">La web esta desplegada, pero la BBDD aun no acepta la conexion.</td></tr>';
       }
     }
 
-    async function cargarEntregas() {
-      try {
-        const res = await fetch('/practicas/entregas');
-        const data = await res.json();
-        const tbody = document.querySelector('#tabla-entregas tbody');
-        if (!data.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay entregas registradas.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.map((e) => `
-          <tr>
-            <td>${e.id}</td>
-            <td>${e.practica}</td>
-            <td>${e.alumno}</td>
-            <td><span class="badge">${e.estado}</span></td>
-            <td>${formatDate(e.fecha_entrega)}</td>
-          </tr>
-        `).join('');
-      } catch (error) {
-        document.getElementById('msg-entregas').innerHTML = '<div class="msg">Error al cargar entregas: ' + error.message + '</div>';
-      }
-    }
-
-    cargarResumen();
-    cargarPracticas();
-    cargarEntregas();
+    cargarTodo();
   </script>
 </body>
 </html>
