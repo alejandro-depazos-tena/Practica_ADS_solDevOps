@@ -10,7 +10,7 @@
     header { background: #1a73e8; color: white; padding: 16px 32px; }
     header h1 { font-size: 1.4rem; }
     header a { color: #cce0ff; font-size: 0.9rem; text-decoration: none; }
-    .container { max-width: 960px; margin: 32px auto; padding: 0 16px; }
+    .container { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
     .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
     h2 { font-size: 1.1rem; margin-bottom: 16px; color: #1a73e8; border-bottom: 2px solid #e8f0fe; padding-bottom: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
@@ -20,10 +20,10 @@
     .btn { background: #1a73e8; color: white; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
     .btn:hover { background: #1558b0; }
     .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
-    .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
     .form-group { display: flex; flex-direction: column; gap: 4px; }
     label { font-size: 0.85rem; font-weight: bold; color: #555; }
-    select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; min-width: 220px; }
+    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; min-width: 160px; }
     .msg { padding: 10px 16px; border-radius: 4px; margin-bottom: 12px; font-size: 0.9rem; }
     .msg.ok { background: #e6f4ea; color: #2d7d46; }
     .msg.err { background: #fce8e6; color: #c5221f; }
@@ -42,34 +42,42 @@
       <h2>Lista de Alumnos</h2>
       <div id="msg-alumnos"></div>
       <table id="tabla-alumnos">
-        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Asignaturas inscritas</th><th>Ver notas</th></tr></thead>
-        <tbody><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Apellido</th><th>Email</th><th>Carrera</th><th>Curso</th><th>Registro</th></tr></thead>
+        <tbody><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
       </table>
     </div>
 
     <div class="card">
-      <h2>Notas del Alumno</h2>
-      <div id="msg-notas"></div>
-      <div id="info-alumno" style="margin-bottom:12px;font-size:0.9rem;color:#555;"></div>
-      <table id="tabla-notas">
-        <thead><tr><th>Asignatura</th><th>Créditos</th><th>Nota</th><th>Estado</th><th>Fecha inscripción</th></tr></thead>
-        <tbody><tr><td colspan="5" class="empty">Selecciona un alumno para ver sus notas.</td></tr></tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>Inscribir Alumno en Asignatura</h2>
-      <div id="msg-inscripcion"></div>
+      <h2>Buscar Alumno</h2>
       <div class="form-row">
         <div class="form-group">
-          <label for="sel-alumno">Alumno</label>
-          <select id="sel-alumno"><option value="">-- Selecciona --</option></select>
+          <label for="filtro-carrera">Carrera</label>
+          <input type="text" id="filtro-carrera" placeholder="Ej: Informática" />
         </div>
         <div class="form-group">
-          <label for="sel-asignatura">Asignatura</label>
-          <select id="sel-asignatura"><option value="">-- Selecciona --</option></select>
+          <label for="filtro-curso">Curso</label>
+          <input type="text" id="filtro-curso" placeholder="Ej: 3" />
         </div>
-        <button class="btn" onclick="inscribir()">Inscribir</button>
+        <button class="btn" onclick="buscar()">Buscar</button>
+        <button class="btn" style="background:#888" onclick="cargarAlumnos()">Ver todos</button>
+      </div>
+      <div id="msg-buscar"></div>
+      <table id="tabla-buscar" style="display:none">
+        <thead><tr><th>ID</th><th>Nombre</th><th>Apellido</th><th>Email</th><th>Carrera</th><th>Curso</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Registrar Nuevo Alumno</h2>
+      <div id="msg-nuevo"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre</label><input type="text" id="nuevo-nombre" /></div>
+        <div class="form-group"><label>Apellido</label><input type="text" id="nuevo-apellido" /></div>
+        <div class="form-group"><label>Email</label><input type="email" id="nuevo-email" /></div>
+        <div class="form-group"><label>Carrera</label><input type="text" id="nuevo-carrera" /></div>
+        <div class="form-group"><label>Curso</label><input type="number" id="nuevo-curso" min="1" max="5" /></div>
+        <button class="btn" onclick="registrar()">Registrar</button>
       </div>
     </div>
 
@@ -81,87 +89,83 @@
         const res = await fetch('/alumnos/lista');
         const data = await res.json();
         const tbody = document.querySelector('#tabla-alumnos tbody');
-        const sel = document.getElementById('sel-alumno');
         if (!data.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay alumnos registrados.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay alumnos registrados.</td></tr>';
           return;
         }
         tbody.innerHTML = data.map(a => `
           <tr>
             <td>${a.id}</td>
             <td>${a.nombre}</td>
+            <td>${a.apellido}</td>
             <td>${a.email}</td>
-            <td>${a.asignaturas_inscritas}</td>
-            <td><button class="btn btn-sm" onclick="cargarNotas(${a.id}, '${a.nombre}')">Ver notas</button></td>
+            <td>${a.carrera || '-'}</td>
+            <td>${a.curso || '-'}</td>
+            <td>${a.fecha_registro ? new Date(a.fecha_registro).toLocaleDateString('es-ES') : '-'}</td>
           </tr>`).join('');
-        sel.innerHTML = '<option value="">-- Selecciona --</option>' +
-          data.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
       } catch (e) {
         document.getElementById('msg-alumnos').innerHTML = '<div class="msg err">Error al cargar alumnos: ' + e.message + '</div>';
       }
     }
 
-    async function cargarNotas(id, nombre) {
-      document.getElementById('info-alumno').textContent = 'Mostrando notas de: ' + nombre;
+    async function buscar() {
+      const carrera = document.getElementById('filtro-carrera').value;
+      const curso = document.getElementById('filtro-curso').value;
+      const params = new URLSearchParams();
+      if (carrera) params.append('carrera', carrera);
+      if (curso) params.append('curso', curso);
       try {
-        const res = await fetch('/alumnos/' + id + '/notas');
+        const res = await fetch('/alumnos/buscar?' + params.toString());
         const data = await res.json();
-        const tbody = document.querySelector('#tabla-notas tbody');
+        const tabla = document.getElementById('tabla-buscar');
+        const tbody = tabla.querySelector('tbody');
+        tabla.style.display = 'table';
         if (!data.length) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty">Este alumno no tiene inscripciones.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="empty">No se encontraron alumnos.</td></tr>';
           return;
         }
-        tbody.innerHTML = data.map(n => `
+        tbody.innerHTML = data.map(a => `
           <tr>
-            <td>${n.asignatura}</td>
-            <td>${n.creditos}</td>
-            <td>${n.nota !== null ? n.nota : '-'}</td>
-            <td>${n.estado || '-'}</td>
-            <td>${new Date(n.fecha_inscripcion).toLocaleDateString('es-ES')}</td>
+            <td>${a.id}</td><td>${a.nombre}</td><td>${a.apellido}</td>
+            <td>${a.email}</td><td>${a.carrera || '-'}</td><td>${a.curso || '-'}</td>
           </tr>`).join('');
       } catch (e) {
-        document.getElementById('msg-notas').innerHTML = '<div class="msg err">Error al cargar notas.</div>';
+        document.getElementById('msg-buscar').innerHTML = '<div class="msg err">Error al buscar.</div>';
       }
     }
 
-    async function cargarAsignaturas() {
-      try {
-        const res = await fetch('/alumnos/asignaturas');
-        const data = await res.json();
-        const sel = document.getElementById('sel-asignatura');
-        sel.innerHTML = '<option value="">-- Selecciona --</option>' +
-          data.map(a => `<option value="${a.id}">${a.nombre} (${a.creditos} cr.)</option>`).join('');
-      } catch (e) {}
-    }
-
-    async function inscribir() {
-      const alumno_id = document.getElementById('sel-alumno').value;
-      const asignatura_id = document.getElementById('sel-asignatura').value;
-      const msgEl = document.getElementById('msg-inscripcion');
-      if (!alumno_id || !asignatura_id) {
-        msgEl.innerHTML = '<div class="msg err">Selecciona un alumno y una asignatura.</div>';
+    async function registrar() {
+      const body = {
+        nombre: document.getElementById('nuevo-nombre').value,
+        apellido: document.getElementById('nuevo-apellido').value,
+        email: document.getElementById('nuevo-email').value,
+        carrera: document.getElementById('nuevo-carrera').value,
+        curso: document.getElementById('nuevo-curso').value
+      };
+      const msgEl = document.getElementById('msg-nuevo');
+      if (!body.nombre || !body.apellido || !body.email) {
+        msgEl.innerHTML = '<div class="msg err">Nombre, apellido y email son obligatorios.</div>';
         return;
       }
       try {
-        const res = await fetch('/alumnos/inscribir', {
+        const res = await fetch('/alumnos/nuevo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ alumno_id: parseInt(alumno_id), asignatura_id: parseInt(asignatura_id) })
+          body: JSON.stringify(body)
         });
         const data = await res.json();
         if (res.ok) {
-          msgEl.innerHTML = '<div class="msg ok">Inscripción realizada correctamente.</div>';
+          msgEl.innerHTML = '<div class="msg ok">Alumno registrado correctamente (ID: ' + data.id + ').</div>';
           cargarAlumnos();
         } else {
           msgEl.innerHTML = '<div class="msg err">' + data.message + '</div>';
         }
       } catch (e) {
-        msgEl.innerHTML = '<div class="msg err">Error al inscribir.</div>';
+        msgEl.innerHTML = '<div class="msg err">Error al registrar.</div>';
       }
     }
 
     cargarAlumnos();
-    cargarAsignaturas();
   </script>
 </body>
 </html>
