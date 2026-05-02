@@ -17,8 +17,17 @@ const pool = new Pool({
   host: process.env.DB_HOST || '10.20.1.221',
   port: Number(process.env.DB_PORT || 5432),
   database: process.env.DB_NAME || 'DB_UFV',
-  user: process.env.DB_USER || 'backend_read',
-  password: process.env.DB_PASSWORD || 'PassRead1!',
+  user: process.env.DB_USER || process.env.DB_USER_READ || 'backend_read',
+  password: process.env.DB_PASSWORD || process.env.DB_PASSWORD_READ || 'PassRead1!',
+  connectionTimeoutMillis: 3000,
+});
+
+const writePool = new Pool({
+  host: process.env.DB_HOST || '10.20.1.221',
+  port: Number(process.env.DB_PORT || 5432),
+  database: process.env.DB_NAME || 'DB_UFV',
+  user: process.env.DB_USER_WRITE || 'backend_write',
+  password: process.env.DB_PASSWORD_WRITE || 'PassWrite1!',
   connectionTimeoutMillis: 3000,
 });
 
@@ -38,6 +47,23 @@ function normalizePractica(row) {
     calificacion: row.calificacion,
     estado: row.estado || 'sin estado',
     fecha_creacion: row.fecha_creacion,
+  };
+}
+
+function normalizeEntrega(row) {
+  const alumnoNombre = [row.alumno_nombre, row.alumno_apellido].filter(Boolean).join(' ');
+
+  return {
+    id: row.id,
+    practica_id: row.practica_id,
+    practica: row.practica || (row.practica_id ? 'Practica #' + row.practica_id : '-'),
+    alumno_id: row.alumno_id,
+    alumno: alumnoNombre || (row.alumno_id ? 'Alumno #' + row.alumno_id : '-'),
+    fecha_entrega: row.fecha_entrega,
+    archivo_url: row.archivo_url,
+    comentario: row.comentario,
+    calificacion: row.calificacion,
+    estado: row.estado || 'sin estado',
   };
 }
 
@@ -67,6 +93,30 @@ async function loadPracticas() {
   return result.rows.map(normalizePractica);
 }
 
+async function loadEntregas() {
+  const result = await pool.query(`
+    SELECT
+      e.id,
+      e.practica_id,
+      e.alumno_id,
+      e.fecha_entrega,
+      e.archivo_url,
+      e.comentario,
+      e.calificacion,
+      e.estado,
+      p.titulo AS practica,
+      a.nombre AS alumno_nombre,
+      a.apellido AS alumno_apellido
+    FROM entregas e
+    LEFT JOIN practicas p ON p.id = e.practica_id
+    LEFT JOIN alumnos a ON a.id = e.alumno_id
+    ORDER BY e.id
+    LIMIT 100
+  `);
+
+  return result.rows.map(normalizeEntrega);
+}
+
 app.get(['/practicas', '/practicas/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'practicas.html'));
 });
@@ -94,6 +144,48 @@ app.get('/health', async (req, res) => {
 app.get('/practicas/lista', async (req, res) => {
   try {
     res.status(200).json(await loadPracticas());
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.get('/practicas/entregas', async (req, res) => {
+  try {
+    res.status(200).json(await loadEntregas());
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.post('/practicas/entregas', async (req, res) => {
+  const practicaId = Number(req.body.practica_id);
+  const alumnoId = Number(req.body.alumno_id);
+  const archivoUrl = req.body.archivo_url || null;
+  const comentario = req.body.comentario || null;
+  const calificacion = req.body.calificacion === '' || req.body.calificacion == null
+    ? null
+    : Number(req.body.calificacion);
+  const estado = req.body.estado || 'Entregada';
+
+  if (!practicaId || !alumnoId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'practica_id y alumno_id son obligatorios',
+    });
+  }
+
+  try {
+    const result = await writePool.query(`
+      INSERT INTO entregas (practica_id, alumno_id, archivo_url, comentario, calificacion, estado)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id
+    `, [practicaId, alumnoId, archivoUrl, comentario, calificacion, estado]);
+
+    res.status(201).json({
+      status: 'ok',
+      id: result.rows[0].id,
+      message: 'Entrega registrada correctamente',
+    });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }
