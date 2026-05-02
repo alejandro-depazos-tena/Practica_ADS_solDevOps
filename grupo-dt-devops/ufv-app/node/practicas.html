@@ -26,9 +26,16 @@
     .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 0.78rem; font-weight: bold; }
     .muted { color: #64748b; }
     .msg { padding: 12px 14px; border-radius: 6px; background: #fee2e2; color: #991b1b; margin-bottom: 14px; font-size: 0.9rem; }
+    .ok { background: #dcfce7; color: #166534; }
     .empty { color: #64748b; font-style: italic; }
+    .button { border: 0; border-radius: 6px; background: #164e63; color: white; padding: 9px 14px; cursor: pointer; font-weight: bold; }
+    .button:hover { background: #0f3a4a; }
+    .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    label { display: block; color: #475569; font-size: 0.82rem; font-weight: bold; margin-bottom: 5px; }
+    input, select { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 9px 10px; font-size: 0.9rem; }
     @media (max-width: 760px) {
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1fr; }
       header { padding: 18px 16px; }
       table { font-size: 0.82rem; }
       th, td { padding: 8px; }
@@ -51,7 +58,7 @@
 
     <section class="grid">
       <div class="metric"><span>Practicas</span><strong id="total-practicas">-</strong></div>
-      <div class="metric"><span>Entregadas</span><strong id="entregadas">-</strong></div>
+      <div class="metric"><span>Completadas</span><strong id="entregadas">-</strong></div>
       <div class="metric"><span>Calificadas</span><strong id="calificadas">-</strong></div>
       <div class="metric"><span>Pendientes</span><strong id="pendientes">-</strong></div>
     </section>
@@ -74,6 +81,64 @@
         </thead>
         <tbody><tr><td colspan="8" class="empty">Cargando practicas desde PostgreSQL...</td></tr></tbody>
       </table>
+    </section>
+
+    <section class="card">
+      <h2>Entregas registradas</h2>
+      <div class="form-grid">
+        <div>
+          <label for="practica-id">ID practica</label>
+          <input id="practica-id" type="number" min="1" placeholder="Ej. 1">
+        </div>
+        <div>
+          <label for="alumno-id">ID alumno</label>
+          <input id="alumno-id" type="number" min="1" placeholder="Ej. 1">
+        </div>
+        <div>
+          <label for="estado-entrega">Estado</label>
+          <select id="estado-entrega">
+            <option value="Entregada">Entregada</option>
+            <option value="Calificada">Calificada</option>
+            <option value="Pendiente">Pendiente</option>
+          </select>
+        </div>
+        <div>
+          <label for="archivo-url">Archivo S3</label>
+          <input id="archivo-url" type="text" placeholder="s3://.../entrega.pdf">
+        </div>
+        <div>
+          <label for="comentario-entrega">Comentario</label>
+          <input id="comentario-entrega" type="text" placeholder="Comentario opcional">
+        </div>
+        <div>
+          <label for="calificacion-entrega">Calificacion</label>
+          <input id="calificacion-entrega" type="number" min="0" max="10" step="0.01" placeholder="Opcional">
+        </div>
+      </div>
+      <button class="button" type="button" onclick="crearEntrega()">Registrar entrega</button>
+      <div id="msg-entregas"></div>
+      <table id="tabla-entregas">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Practica</th>
+            <th>Alumno</th>
+            <th>Fecha entrega</th>
+            <th>Archivo</th>
+            <th>Comentario</th>
+            <th>Calificacion</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody><tr><td colspan="8" class="empty">Cargando entregas desde PostgreSQL...</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Integracion S3</h2>
+      <div id="msg-s3" class="empty">Comprobando bucket S3...</div>
+      <p class="muted" id="s3-objects" style="margin: 12px 0;"></p>
+      <button class="button" type="button" onclick="crearEvidenciaS3()">Crear evidencia</button>
     </section>
   </main>
 
@@ -125,16 +190,110 @@
       `).join('');
     }
 
+    async function cargarEntregas() {
+      const res = await fetch('/practicas/entregas');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al cargar entregas');
+
+      const tbody = document.querySelector('#tabla-entregas tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No hay entregas registradas.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map((e) => `
+        <tr>
+          <td>${e.id}</td>
+          <td>${e.practica || '-'}</td>
+          <td>${e.alumno || '-'}</td>
+          <td>${formatDate(e.fecha_entrega)}</td>
+          <td class="muted">${e.archivo_url || '-'}</td>
+          <td class="muted">${e.comentario || '-'}</td>
+          <td>${e.calificacion == null ? '-' : e.calificacion}</td>
+          <td><span class="badge">${e.estado || 'sin estado'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function crearEntrega() {
+      const payload = {
+        practica_id: Number(document.getElementById('practica-id').value),
+        alumno_id: Number(document.getElementById('alumno-id').value),
+        archivo_url: document.getElementById('archivo-url').value,
+        comentario: document.getElementById('comentario-entrega').value,
+        calificacion: document.getElementById('calificacion-entrega').value,
+        estado: document.getElementById('estado-entrega').value
+      };
+
+      try {
+        const res = await fetch('/practicas/entregas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error creando entrega');
+        document.getElementById('msg-entregas').innerHTML =
+          '<div class="msg ok"><strong>Entrega creada:</strong> ID ' + data.id + '</div>';
+        await cargarResumen();
+        await cargarEntregas();
+      } catch (error) {
+        document.getElementById('msg-entregas').innerHTML =
+          '<div class="msg"><strong>Error creando entrega:</strong> ' + error.message + '</div>';
+      }
+    }
+
+    async function cargarS3() {
+      try {
+        const res = await fetch('/practicas/s3/status');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al consultar S3');
+        document.getElementById('msg-s3').className = 'msg ok';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>S3 operativo:</strong> ' + data.bucket;
+        document.getElementById('s3-objects').textContent =
+          'Objetos encontrados en practicas/: ' + data.objects.length;
+      } catch (error) {
+        document.getElementById('msg-s3').className = 'msg';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>Error S3:</strong> ' + error.message;
+      }
+    }
+
+    async function crearEvidenciaS3() {
+      try {
+        const res = await fetch('/practicas/evidencias', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ origen: 'frontend-practicas' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error creando evidencia');
+        document.getElementById('msg-s3').className = 'msg ok';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>Evidencia creada en S3:</strong> ' + data.key;
+        await cargarS3();
+      } catch (error) {
+        document.getElementById('msg-s3').className = 'msg';
+        document.getElementById('msg-s3').innerHTML =
+          '<strong>Error creando evidencia:</strong> ' + error.message;
+      }
+    }
+
     async function cargarTodo() {
       try {
         await cargarResumen();
         await cargarPracticas();
+        await cargarEntregas();
       } catch (error) {
         document.getElementById('msg-practicas').innerHTML =
           '<div class="msg"><strong>Error conectando con PostgreSQL:</strong> ' + error.message + '</div>';
         document.querySelector('#tabla-practicas tbody').innerHTML =
           '<tr><td colspan="8" class="empty">La web esta desplegada, pero la BBDD aun no acepta la conexion.</td></tr>';
+        document.querySelector('#tabla-entregas tbody').innerHTML =
+          '<tr><td colspan="8" class="empty">No se han podido cargar las entregas.</td></tr>';
       }
+      await cargarS3();
     }
 
     cargarTodo();
