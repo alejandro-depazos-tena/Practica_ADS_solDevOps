@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DT Strict 5 Accounts - Alumno B (LB + DB)
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.20.0.0/16
+  PublicSubnetCidr:
+    Type: String
+    Default: 10.20.1.0/24
+  PrivateSubnetCidr:
+    Type: String
+    Default: 10.20.11.0/24
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+  AmiLinux:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+  AdminCidr:
+    Type: String
+    Description: CIDR administrativo SSH
+  WebVpcCidrs:
+    Type: CommaDelimitedList
+    Default: 10.30.0.0/16,10.40.0.0/16,10.50.0.0/16
+    Description: CIDRs VPC de C/D/E
+  BudgetLimitUSD:
+    Type: Number
+    Default: 10
+  BudgetEmail:
+    Type: String
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: DT-B-vpc-lb-db
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachIgw:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetCidr
+      MapPublicIpOnLaunch: false
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIgw
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet
+
+  LBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DT B SG LB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminCidr
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: DT-B-sg-lb
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DT B SG DB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminCidr
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Select [0, !Ref WebVpcCidrs]
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Select [1, !Ref WebVpcCidrs]
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Select [2, !Ref WebVpcCidrs]
+      Tags:
+        - Key: Name
+          Value: DT-B-sg-db
+
+  LBInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiLinux
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref LBSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: DT-B-LB01
+
+  DBInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiLinux
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref DatabaseSecurityGroup]
+      Tags:
+        - Key: Name
+          Value: DT-B-DB01
+
+  LBEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  LBEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt LBEip.AllocationId
+      InstanceId: !Ref LBInstance
+
+  DBEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  DBEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt DBEip.AllocationId
+      InstanceId: !Ref DBInstance
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+  VpcCidr:
+    Value: !Ref VpcCidr
+  PublicSubnetId:
+    Value: !Ref PublicSubnet
+  RouteTableId:
+    Value: !Ref PublicRouteTable
+  PrivateRouteTableId:
+    Value: !Ref PrivateRouteTable
+  LBInstanceId:
+    Value: !Ref LBInstance
+  DBInstanceId:
+    Value: !Ref DBInstance
+  LBEip:
+    Value: !Ref LBEip
+  DBEip:
+    Value: !Ref DBEip
