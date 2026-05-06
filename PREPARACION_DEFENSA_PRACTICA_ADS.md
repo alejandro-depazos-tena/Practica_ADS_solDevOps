@@ -424,10 +424,10 @@ Esta seccion sirve como chuleta por si el profesor pide comprobar algo en direct
 
 ## Conectar por SSH a las instancias del Alumno E
 
-Desde PowerShell, en la carpeta donde este la clave `dt-e-key.pem`:
+La clave privada del Alumno E esta en:
 
 ```powershell
-ssh -i .\dt-e-key.pem ubuntu@15.217.55.202
+"C:\Users\jdean\Desktop\dt-e-key.pem"
 ```
 
 Web01-E:
@@ -436,7 +436,7 @@ Web01-E:
 - IP privada: `10.50.1.175`
 
 ```powershell
-ssh -i .\dt-e-key.pem ubuntu@15.217.55.202
+ssh -i "C:\Users\jdean\Desktop\dt-e-key.pem" ubuntu@15.217.55.202
 ```
 
 Web02-E:
@@ -445,14 +445,14 @@ Web02-E:
 - IP privada: `10.50.1.58`
 
 ```powershell
-ssh -i .\dt-e-key.pem ubuntu@15.217.157.115
+ssh -i "C:\Users\jdean\Desktop\dt-e-key.pem" ubuntu@15.217.157.115
 ```
 
 Si Windows da error de permisos con la clave:
 
 ```powershell
-icacls .\dt-e-key.pem /inheritance:r
-icacls .\dt-e-key.pem /grant:r "$env:USERNAME:R"
+icacls "C:\Users\jdean\Desktop\dt-e-key.pem" /inheritance:r
+icacls "C:\Users\jdean\Desktop\dt-e-key.pem" /grant:r "$env:USERNAME:R"
 ```
 
 ## Comprobar en que instancia estoy
