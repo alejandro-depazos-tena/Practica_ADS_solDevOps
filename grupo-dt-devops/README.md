@@ -1,50 +1,54 @@
-# Grupo DT — Práctica AWS en formato DevOps
+# Grupo DT - Propuesta DevOps no ejecutada finalmente
 
-Proyecto automatizado para la práctica de **Integración de Sistemas en AWS** siguiendo la solución de Alex y la rúbrica.
+Esta carpeta conserva la linea de trabajo DevOps planteada inicialmente para la practica.
 
-## Integrantes
-- Alejandro — Alumno A (Windows AD/DC + cliente Windows AD)
-- Nicolás — Alumno B (Linux LB + Linux DB)
-- Mario — Alumno C (Linux Web01: location /profesores)
-- Gonzalo — Alumno D (Linux Web02: location /alumnos)
-- Jesús — Alumno E (Linux Web03: location /practicas)
+Incluye recursos para:
 
-## Estructura
-- `cloudformation/`: infraestructura AWS (2 cuentas y peering)
-- `jenkins/`: pipelines Jenkins
-- `ansible/`: inventario dinámico y playbooks
-- `ufv-app/`: app web, nginx y Node.js
-- `scripts/`: utilidades de bootstrap y validación
-- `.github/workflows/`: CI/CD para GitHub Actions
-- `docs/`: guía de operación y evidencias
+- Ansible.
+- Jenkins.
+- GitHub Actions.
+- Scripts de automatizacion.
+- Codigo de aplicacion.
+- Documentacion tecnica auxiliar.
 
-## Flujo DevOps recomendado
-1. Desplegar infraestructura (`Jenkinsfile-infra` o workflow `deploy.yml`)
-2. Generar inventario dinámico (`Jenkinsfile-inventory`)
-3. Configurar AD + DNS + NTP + Linux (`Jenkinsfile-provision`)
-4. Desplegar/actualizar app (`Jenkinsfile-webdeploy`)
+## Estado
 
-## Alcance técnico alineado con rúbrica
-- 2 VPC en cuentas distintas conectadas por peering + rutas cruzadas.
-- Cuenta personal: AD DS + DNS + DHCP + NTP, LB Nginx, PostgreSQL, cliente Windows.
-- Cuenta UFV: 3 webservers Linux (Web01/Web02/Web03) con módulos separados por location.
-- LB con locations dedicadas:
-	- `/profesores` -> Web01
-	- `/alumnos` -> Web02
-	- `/practicas` -> Web03
-- BD `academico` con tablas: `asignaturas`, `alumnos`, `inscripciones`, `practicas`, `entregas`.
-- Integración S3 por IAM Role en servidores web.
+Esta no fue la solucion ejecutada finalmente de principio a fin.
 
-## Requisitos mínimos
-- AWS CLI configurado con 5 perfiles: `AlejandroA`, `NicolasB`, `MarioC`, `GonzaloD`, `JesusE`
-- Jenkins + Java 17 en nodo de control Ubuntu
-- Ansible + colecciones necesarias
-- Llaves SSH y credenciales WinRM
+Durante la practica se decidio entregar una solucion mas controlada basada en:
 
-## Nota de seguridad
-No subas credenciales reales al repositorio. Usa variables de entorno y secretos de Jenkins/GitHub Actions.
+- CloudFormation por alumno.
+- AWS CLI.
+- VPC Peering distribuido.
+- Configuracion manual validada de servicios.
 
-## Nota de cumplimiento de rúbrica
-Si se aplica interpretación estricta del enunciado, el despliegue debe ejecutarse por cuenta individual de alumno (5 cuentas), no solo en cuentas centralizadas. Ver plan operativo en `documentacion/entrega-final-dt/PLAN_EJECUCION_5_CUENTAS_ESTRICTO.md`.
+La solucion final ordenada para entrega esta en:
 
-Plantillas CloudFormation estrictas por alumno disponibles en `cloudformation/strict-5/`.
+`../grupo-dt-CloudFormation`
+
+## Motivo
+
+La automatizacion completa con Ansible/Jenkins era viable como ampliacion, pero aumentaba bastante la complejidad y no dio tiempo a cerrarla con garantias antes de la entrega.
+
+Se conserva esta carpeta para mostrar la linea de mejora y el enfoque DevOps que se habia empezado a preparar.
+
+## Contenido
+
+- `ansible/`: playbooks e inventario para provisionamiento.
+- `jenkins/`: pipelines Jenkins.
+- `.github/workflows/`: workflows de GitHub Actions.
+- `cloudformation/`: plantillas y versiones de trabajo.
+- `scripts/`: utilidades de despliegue, validacion y peering.
+- `ufv-app/`: codigo de los modulos web.
+- `docs/` y `documentacion/`: documentacion auxiliar.
+
+## Aviso de seguridad
+
+Antes de entregar o subir esta carpeta, revisar que no se incluyan:
+
+- Claves `.pem`.
+- Archivos `.env`.
+- Credenciales AWS.
+- Contrasenas reales.
+
+La raiz del proyecto incluye un `.gitignore` para evitar subir este tipo de archivos.

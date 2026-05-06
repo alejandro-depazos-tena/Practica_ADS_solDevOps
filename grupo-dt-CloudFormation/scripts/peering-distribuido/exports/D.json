@@ -1,0 +1,11 @@
+{
+  "accountKey": "D",
+  "profile": "GonzaloD",
+  "stack": "dt-gonzalo-web-alumnos",
+  "region": "eu-south-2",
+  "accountId": "544719091320",
+  "vpcId": "vpc-068f6e0dd11c6fba9",
+  "vpcCidr": "10.40.0.0/16",
+  "publicRouteTableId": "rtb-03f2c7b629b3f390e",
+  "privateRouteTableId": "rtb-08d4413aeb1de4ec9"
+}

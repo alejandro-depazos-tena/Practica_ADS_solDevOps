@@ -1,0 +1,11 @@
+{
+  "accountKey": "E",
+  "profile": "JesusE",
+  "stack": "dt-e-web-u3",
+  "region": "eu-south-2",
+  "accountId": "906985802888",
+  "vpcId": "vpc-03ecaed63618c9982",
+  "vpcCidr": "10.50.0.0/16",
+  "publicRouteTableId": "rtb-08af9f3e2ad0aa3c9",
+  "privateRouteTableId": "rtb-07a3c6b6c509a4681"
+}
