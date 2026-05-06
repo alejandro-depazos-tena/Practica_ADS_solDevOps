@@ -1,52 +1,37 @@
-# Guion de defensa — Grupo DT (5–8 minutos)
+# Guion corto - propuesta DevOps
 
-## 1. Apertura (30-45s)
+Este guion sirve solo para explicar la parte DevOps como mejora planteada. No debe presentarse como el flujo final ejecutado.
 
-> "Somos el Grupo DT. Hemos implementado la práctica en AWS con un enfoque DevOps completo: infraestructura como código, pipelines automáticos y configuración con Ansible, siguiendo la guía de Alex y la rúbrica oficial."
+## Idea principal
 
-## 2. Arquitectura (1-2 min)
+Durante el proyecto se planteo una linea DevOps para automatizar despliegue, configuracion y actualizacion de la infraestructura.
 
-- Cinco perfiles AWS de alumnos: `AlejandroA`, `NicolasB`, `MarioC`, `GonzaloD`, `JesusE`.
-- En la cuenta de A: AD + DNS + NTP y cliente Windows.
-- En la cuenta de B: LB Nginx y PostgreSQL.
-- En las cuentas de C, D y E: tres web servers Linux con Nginx + Node.
-- Integración por VPC peering y rutas cruzadas entre cuentas.
+La entrega final se cerro con CloudFormation por alumno, peering distribuido y configuracion validada manualmente. La carpeta `grupo-dt-devops` queda como propuesta de ampliacion.
 
-## 3. Automatización (2 min)
+## Que incluia la propuesta
 
-- IaC con CloudFormation para los stacks `A`, `B`, `C`, `D` y `E`.
-- CI/CD con GitHub Actions y Jenkinsfiles.
-- Provisioning con Ansible (inventario dinámico + playbooks).
-- Flujo repetible: deploy → inventario → provisioning → web update.
+- CloudFormation para infraestructura como codigo.
+- Scripts PowerShell para despliegue y peering.
+- Ansible para configurar servicios.
+- Jenkins para orquestar pipelines.
+- GitHub Actions como alternativa CI/CD.
+- Aplicacion Node.js desplegable en los Web Servers.
 
-## 4. Reparto del equipo (1 min)
+## Valor que aportaria
 
-- Alejandro: AD, DNS, NTP, políticas.
-- Nicolás: LB y DB.
-- Mario: Web01 y backend.
-- Gonzalo: Web02 y balanceo.
-- Jesús: Web03 y módulo `/practicas`.
+- Despliegues repetibles.
+- Menos configuracion manual.
+- Trazabilidad por commits y ejecuciones.
+- Provisioning mas rapido ante recreacion de infraestructura.
+- Mejor base para DRP y recuperacion.
 
-## 5. Evidencias mostradas (1-2 min)
+## Por que no fue el flujo final
 
-- Pipelines en verde.
-- Stacks `CREATE_COMPLETE`.
-- Inventario dinámico con hosts activos.
-- Nginx respondiendo y endpoint `/profesores` operativo.
-- PostgreSQL y esquema académico activo.
-- Evidencias AD/GPO y control de costes.
+- Requeria cerrar muchos puntos al mismo tiempo: AWS, SSH, WinRM, Ansible, Jenkins, inventario dinamico y secretos.
+- La prioridad fue entregar una solucion estable y demostrable.
+- El enfoque DevOps queda como ampliacion razonable y documentada.
 
-## 6. Cierre (20-30s)
+## Frase para defensa
 
-> "Con esta solución hemos reducido despliegues manuales, aumentado trazabilidad y mejorado la repetibilidad del laboratorio, cumpliendo los objetivos técnicos de integración y el criterio DevOps para el punto extra."
+Ademas de la solucion final con CloudFormation, dejamos planteada una linea DevOps con Ansible y Jenkins. No fue el flujo ejecutado finalmente por tiempo y complejidad, pero muestra como podria evolucionar el proyecto hacia despliegues mas repetibles y automatizados.
 
-## Preguntas típicas del profesor y respuesta corta
-
-1. **¿Qué valor aporta DevOps aquí?**
-   - Menos errores manuales, despliegues repetibles y auditoría completa por commits/runs.
-
-2. **¿Cómo recuperáis ante fallo?**
-   - Re-despliegue IaC + re-ejecución Ansible + opción `destroy/deploy` controlada.
-
-3. **¿Por qué no usar root?**
-   - Seguridad y principio de mínimo privilegio; trazabilidad por IAM.

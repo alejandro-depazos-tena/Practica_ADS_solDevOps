@@ -11,16 +11,23 @@ const dbConfig = {
   database: process.env.DB_NAME || 'DB_UFV',
 };
 
+function requiredEnv(name) {
+  if (!process.env[name]) {
+    throw new Error('Missing required environment variable: ' + name);
+  }
+  return process.env[name];
+}
+
 const readPool = new Pool({
   ...dbConfig,
   user: process.env.DB_USER || process.env.DB_USER_READ || 'backend_read',
-  password: process.env.DB_PASSWORD || process.env.DB_PASSWORD_READ || 'PassRead1!',
+  password: process.env.DB_PASSWORD || requiredEnv('DB_PASSWORD_READ'),
 });
 
 const writePool = new Pool({
   ...dbConfig,
   user: process.env.DB_WRITE_USER || process.env.DB_USER_WRITE || process.env.DB_USER || 'backend_write',
-  password: process.env.DB_WRITE_PASSWORD || process.env.DB_PASSWORD_WRITE || process.env.DB_PASSWORD,
+  password: process.env.DB_WRITE_PASSWORD || process.env.DB_PASSWORD_WRITE || process.env.DB_PASSWORD || requiredEnv('DB_PASSWORD_WRITE'),
 });
 
 const PORT = process.env.PORT || 3001;

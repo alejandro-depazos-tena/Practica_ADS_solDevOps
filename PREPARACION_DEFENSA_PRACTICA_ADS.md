@@ -418,3 +418,381 @@ Despues se comprobo que el objeto aparecia en el bucket S3.
 
 Mi parte es el modulo de practicas. Esta desplegado en dos instancias EC2 dentro de la VPC del Alumno E. El acceso llega desde el Load Balancer del Alumno B mediante la ruta `/practicas/`. El backend esta hecho en Node.js, consulta PostgreSQL para obtener practicas y entregas, permite crear entregas y utiliza S3 mediante IAM Role para generar evidencias sin usar claves estaticas.
 
+## Comandos utiles para la defensa
+
+Esta seccion sirve como chuleta por si el profesor pide comprobar algo en directo.
+
+## Conectar por SSH a las instancias del Alumno E
+
+Desde PowerShell, en la carpeta donde este la clave `dt-e-key.pem`:
+
+```powershell
+ssh -i .\dt-e-key.pem ubuntu@15.217.55.202
+```
+
+Web01-E:
+
+- IP publica: `15.217.55.202`
+- IP privada: `10.50.1.175`
+
+```powershell
+ssh -i .\dt-e-key.pem ubuntu@15.217.55.202
+```
+
+Web02-E:
+
+- IP publica: `15.217.157.115`
+- IP privada: `10.50.1.58`
+
+```powershell
+ssh -i .\dt-e-key.pem ubuntu@15.217.157.115
+```
+
+Si Windows da error de permisos con la clave:
+
+```powershell
+icacls .\dt-e-key.pem /inheritance:r
+icacls .\dt-e-key.pem /grant:r "$env:USERNAME:R"
+```
+
+## Comprobar en que instancia estoy
+
+Dentro de la instancia:
+
+```bash
+hostname
+hostname -I
+whoami
+pwd
+```
+
+Esperado:
+
+- Usuario: `ubuntu`.
+- Web01-E deberia mostrar `10.50.1.175`.
+- Web02-E deberia mostrar `10.50.1.58`.
+
+## Comprobar Nginx
+
+Ver estado del servicio:
+
+```bash
+sudo systemctl status nginx
+```
+
+Reiniciar Nginx:
+
+```bash
+sudo systemctl restart nginx
+```
+
+Validar sintaxis de configuracion:
+
+```bash
+sudo nginx -t
+```
+
+Ver configuracion activa:
+
+```bash
+sudo cat /etc/nginx/sites-available/default
+```
+
+Ver si esta escuchando en el puerto 80:
+
+```bash
+sudo ss -ltnp | grep ':80'
+```
+
+## Comprobar el backend Node.js de practicas
+
+Ver estado del servicio:
+
+```bash
+sudo systemctl status ufv-practicas
+```
+
+Reiniciar el servicio:
+
+```bash
+sudo systemctl restart ufv-practicas
+```
+
+Ver definicion del servicio:
+
+```bash
+sudo systemctl cat ufv-practicas
+```
+
+Ver logs recientes:
+
+```bash
+sudo journalctl -u ufv-practicas -n 50 --no-pager
+```
+
+Ver si Node escucha en el puerto interno:
+
+```bash
+sudo ss -ltnp | grep node
+```
+
+## Probar el modulo desde dentro de la instancia
+
+Desde Web01-E o Web02-E:
+
+```bash
+curl http://localhost/practicas/
+curl http://localhost/practicas/resumen
+curl http://localhost/practicas/lista
+curl http://localhost/practicas/entregas
+curl http://localhost/practicas/s3/status
+```
+
+Si se quiere probar directamente contra Node, primero mirar el puerto:
+
+```bash
+sudo systemctl cat ufv-practicas
+```
+
+Normalmente el servicio usa `PORT=3001`, por lo que se puede probar:
+
+```bash
+curl http://localhost:3001/practicas/resumen
+```
+
+## Probar desde el Load Balancer o desde el cliente
+
+Con IP publica del Load Balancer:
+
+```powershell
+curl http://51.48.226.94/profesores/lista
+curl http://51.48.226.94/alumnos/lista
+curl http://51.48.226.94/practicas/lista
+curl http://51.48.226.94/practicas/entregas
+curl http://51.48.226.94/practicas/s3/status
+```
+
+Con dominio corporativo desde el cliente Windows:
+
+```powershell
+curl http://www.corp.ufv.local/profesores/lista
+curl http://www.corp.ufv.local/alumnos/lista
+curl http://www.corp.ufv.local/practicas/lista
+curl http://www.corp.ufv.local/practicas/entregas
+curl http://www.corp.ufv.local/practicas/s3/status
+```
+
+## Comprobar DNS corporativo desde cliente Windows
+
+```powershell
+nslookup www.corp.ufv.local
+```
+
+```powershell
+Test-NetConnection www.corp.ufv.local -Port 80
+```
+
+Resultado esperado:
+
+- El dominio resuelve hacia la IP privada del Load Balancer.
+- `TcpTestSucceeded: True`.
+
+## Comprobar PostgreSQL desde una instancia E
+
+Probar conectividad al puerto:
+
+```bash
+nc -vz 10.20.1.221 5432
+```
+
+Si no esta instalado `nc`:
+
+```bash
+telnet 10.20.1.221 5432
+```
+
+Conectar con `psql`:
+
+```bash
+psql -h 10.20.1.221 -U backend_read -d DB_UFV
+```
+
+Consultas utiles dentro de `psql`:
+
+```sql
+\dt
+SELECT id, titulo, fecha_entrega, calificacion, estado FROM practicas;
+SELECT * FROM entregas;
+\q
+```
+
+Si la salida entra en modo paginador y aparece `(END)`, salir con:
+
+```text
+q
+```
+
+Para desactivar el paginador dentro de `psql`:
+
+```sql
+\pset pager off
+```
+
+## Comprobar S3 desde la aplicacion
+
+Endpoint de estado:
+
+```powershell
+curl http://51.48.226.94/practicas/s3/status
+```
+
+Desde dominio corporativo:
+
+```powershell
+curl http://www.corp.ufv.local/practicas/s3/status
+```
+
+Si se esta dentro de la instancia:
+
+```bash
+curl http://localhost/practicas/s3/status
+```
+
+Bucket del Alumno E:
+
+```text
+dt-e-web-storage-906985802888-eu-south-2
+```
+
+## Comprobar CloudFormation del Alumno E
+
+Ver estado de la stack:
+
+```powershell
+aws cloudformation describe-stacks `
+  --profile JesusE `
+  --region eu-south-2 `
+  --stack-name dt-e-web-u3
+```
+
+Ver recursos de la stack:
+
+```powershell
+aws cloudformation list-stack-resources `
+  --profile JesusE `
+  --region eu-south-2 `
+  --stack-name dt-e-web-u3
+```
+
+Ver outputs:
+
+```powershell
+aws cloudformation describe-stacks `
+  --profile JesusE `
+  --region eu-south-2 `
+  --stack-name dt-e-web-u3 `
+  --query "Stacks[0].Outputs"
+```
+
+## Comando de despliegue CloudFormation del Alumno E
+
+```powershell
+aws cloudformation deploy `
+  --profile JesusE `
+  --region eu-south-2 `
+  --stack-name dt-e-web-u3 `
+  --template-file cloudformation/strict-5/stack-E-web-upstream3.yaml `
+  --capabilities CAPABILITY_NAMED_IAM `
+  --parameter-overrides `
+    KeyPairName=dt-e-key `
+    AdminCidr=<TU_IP_PUBLICA>/32 `
+    LbVpcCidr=10.20.0.0/16 `
+    BudgetEmail=<EMAIL>
+```
+
+Si no hay cambios, CloudFormation indicara que la stack esta actualizada o que no hay cambios que desplegar.
+
+## Comandos de peering distribuido
+
+Carpeta:
+
+```powershell
+cd .\grupo-dt-CloudFormation\scripts\peering-distribuido
+```
+
+Exportar datos de red del Alumno E:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\strict5-export-local-network-info.ps1 `
+  -AccountKey E `
+  -Profile JesusE `
+  -Stack dt-e-web-u3 `
+  -Region eu-south-2
+```
+
+Fusionar exports de todos:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\strict5-merge-exports-into-topology.ps1
+```
+
+Ejecutar peering del Alumno E:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run-E-peering.ps1 -TopologyFile .\strict5-team-topology.json
+```
+
+Simular antes de aplicar:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run-E-peering.ps1 -TopologyFile .\strict5-team-topology.json -WhatIfOnly
+```
+
+## Comprobar Security Groups y rutas en AWS CLI
+
+Ver instancias E:
+
+```powershell
+aws ec2 describe-instances `
+  --profile JesusE `
+  --region eu-south-2 `
+  --filters "Name=tag:Name,Values=DT-E-Web*" `
+  --query "Reservations[*].Instances[*].[Tags[?Key=='Name'].Value|[0],PrivateIpAddress,PublicIpAddress,State.Name]" `
+  --output table
+```
+
+Ver peerings:
+
+```powershell
+aws ec2 describe-vpc-peering-connections `
+  --profile JesusE `
+  --region eu-south-2 `
+  --query "VpcPeeringConnections[*].[VpcPeeringConnectionId,Status.Code,RequesterVpcInfo.CidrBlock,AccepterVpcInfo.CidrBlock]" `
+  --output table
+```
+
+## Comandos de emergencia suaves
+
+Reiniciar Nginx:
+
+```bash
+sudo systemctl restart nginx
+```
+
+Reiniciar backend:
+
+```bash
+sudo systemctl restart ufv-practicas
+```
+
+Ver ultimos errores del backend:
+
+```bash
+sudo journalctl -u ufv-practicas -n 80 --no-pager
+```
+
+Ver ultimos errores de Nginx:
+
+```bash
+sudo tail -n 80 /var/log/nginx/error.log
+```

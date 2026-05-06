@@ -2,3 +2,4 @@
 *.key
 .env
 grupo-dt-solucion-cloudformation/
+_local_secrets_NO_SUBIR/

@@ -9,6 +9,13 @@ app.use(express.json());
 const s3 = new S3Client({ region: process.env.AWS_REGION || 'eu-south-2' });
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'dt-d-web-storage-544719091320-eu-south-2';
 
+function requiredEnv(name) {
+  if (!process.env[name]) {
+    throw new Error('Missing required environment variable: ' + name);
+  }
+  return process.env[name];
+}
+
 async function guardarRegistroS3(tipo, datos) {
   const registro = { tipo, datos, fecha: new Date().toISOString(), modulo: 'alumnos' };
   const key = `alumnos/${tipo}-${Date.now()}.json`;
@@ -23,7 +30,7 @@ async function guardarRegistroS3(tipo, datos) {
 const pool = new Pool({
   host: process.env.DB_HOST || '10.20.1.221',
   user: process.env.DB_USER || 'backend_read',
-  password: process.env.DB_PASSWORD,
+  password: requiredEnv('DB_PASSWORD'),
   database: process.env.DB_NAME || 'DB_UFV',
   port: 5432,
   connectionTimeoutMillis: 5000,

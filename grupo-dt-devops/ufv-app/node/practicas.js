@@ -13,12 +13,19 @@ const AWS_REGION = process.env.AWS_REGION || 'eu-south-2';
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'dt-e-web-storage-906985802888-eu-south-2';
 const s3 = new AWS.S3({ region: AWS_REGION });
 
+function requiredEnv(name) {
+  if (!process.env[name]) {
+    throw new Error('Missing required environment variable: ' + name);
+  }
+  return process.env[name];
+}
+
 const pool = new Pool({
   host: process.env.DB_HOST || '10.20.1.221',
   port: Number(process.env.DB_PORT || 5432),
   database: process.env.DB_NAME || 'DB_UFV',
   user: process.env.DB_USER || process.env.DB_USER_READ || 'backend_read',
-  password: process.env.DB_PASSWORD || process.env.DB_PASSWORD_READ || 'PassRead1!',
+  password: process.env.DB_PASSWORD || requiredEnv('DB_PASSWORD_READ'),
   connectionTimeoutMillis: 3000,
 });
 
@@ -27,7 +34,7 @@ const writePool = new Pool({
   port: Number(process.env.DB_PORT || 5432),
   database: process.env.DB_NAME || 'DB_UFV',
   user: process.env.DB_USER_WRITE || 'backend_write',
-  password: process.env.DB_PASSWORD_WRITE || 'PassWrite1!',
+  password: requiredEnv('DB_PASSWORD_WRITE'),
   connectionTimeoutMillis: 3000,
 });
 

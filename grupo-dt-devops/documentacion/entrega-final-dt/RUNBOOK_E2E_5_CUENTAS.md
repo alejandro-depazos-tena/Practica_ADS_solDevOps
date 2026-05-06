@@ -1,73 +1,88 @@
-# Runbook E2E - 5 cuentas (modo estricto)
+# Runbook E2E propuesto - 5 cuentas
 
-## 1) Prerrequisitos del equipo
+Este runbook describe como se habria ejecutado la automatizacion DevOps completa. Se conserva como ampliacion tecnica, no como procedimiento final usado en la entrega.
 
-1. AWS CLI instalado y en PATH.
-2. Ansible instalado y en PATH.
-3. Perfiles AWS operativos: AlejandroA, NicolasB, MarioC, GonzaloD, JesusE.
-4. Key pair creada en cada cuenta.
+## 1. Prerrequisitos
 
-## 2) Despliegue de infraestructura por CloudFormation
+- AWS CLI instalado.
+- Perfiles AWS configurados:
+  - `AlejandroA`
+  - `NicolasB`
+  - `MarioC`
+  - `GonzaloD`
+  - `JesusE`
+- Key pair creada en cada cuenta.
+- Ansible instalado.
+- Jenkins o GitHub Actions configurado.
+- Secretos cargados como variables de entorno o credenciales del pipeline.
 
-Opción rápida (todo en bloque):
+## 2. Despliegue CloudFormation
+
+Cada alumno desplegaria su stack desde `cloudformation/strict-5/`.
+
+Ejemplo:
 
 ```powershell
-Set-Location <ruta-repo>
-./scripts/strict5-deploy-all.ps1 `
-  -Region eu-south-2 `
-  -AdminCidr <IP_PUBLICA>/32 `
-  -BudgetEmail <EMAIL_ALERTAS> `
-  -KeyPairA <KEYPAIR_A> `
-  -KeyPairB <KEYPAIR_B> `
-  -KeyPairC <KEYPAIR_C> `
-  -KeyPairD <KEYPAIR_D> `
-  -KeyPairE <KEYPAIR_E>
+aws cloudformation deploy `
+  --profile JesusE `
+  --region eu-south-2 `
+  --stack-name dt-e-web-u3 `
+  --template-file cloudformation/strict-5/stack-E-web-upstream3.yaml `
+  --capabilities CAPABILITY_NAMED_IAM `
+  --parameter-overrides `
+    KeyPairName=<KEYPAIR_E> `
+    AdminCidr=<IP_PUBLICA>/32 `
+    LbVpcCidr=10.20.0.0/16 `
+    BudgetEmail=<EMAIL_ALERTAS>
 ```
 
-Opción individual: ver `cloudformation/strict-5/README.md`.
+## 3. Exportacion de red y peering
 
-## 3) Exportar outputs
+Cada alumno exportaria su informacion de red:
 
 ```powershell
-./scripts/strict5-export-outputs.ps1 -Region eu-south-2
+powershell -ExecutionPolicy Bypass -File .\strict5-export-local-network-info.ps1 `
+  -AccountKey E `
+  -Profile JesusE `
+  -Stack dt-e-web-u3 `
+  -Region eu-south-2
 ```
 
-## 4) Integración intercuenta (peering + rutas)
+Despues se fusionarian los exports y cada alumno ejecutaria su `run-<LETRA>-peering.ps1`.
+
+## 4. Provisioning con Ansible
+
+La idea era ejecutar playbooks para:
+
+- Configurar AD, DNS y NTP.
+- Configurar clientes DNS.
+- Preparar Python/Node.
+- Instalar y configurar PostgreSQL.
+- Desplegar aplicaciones.
+- Configurar Nginx.
+
+Ejemplo:
 
 ```powershell
-./scripts/strict5-integrate-peerings.ps1 -Region eu-south-2
-```
-
-Simulación:
-
-```powershell
-./scripts/strict5-integrate-peerings.ps1 -Region eu-south-2 -WhatIfOnly
-```
-
-## 5) Provisioning y despliegue de servicios
-
-1. Cargar secretos requeridos para AD/PostgreSQL/S3.
-2. Ejecutar provision completo:
-
-```powershell
-ansible-playbook -i ansible/inventory/aws_inventory.sh ansible/playbooks/update_inventory.yml
-ansible-playbook -i ansible/inventory/aws_inventory.sh ansible/playbooks/setup_ad_dns_ntp.yml
-ansible-playbook -i ansible/inventory/aws_inventory.sh ansible/playbooks/configure_dns_clients.yml
-ansible-playbook -i ansible/inventory/aws_inventory.sh ansible/playbooks/setup_python_venv.yml
 ansible-playbook -i ansible/inventory/aws_inventory.sh ansible/playbooks/deploy_app.yml
 ```
 
-## 6) Validación funcional
+## 5. Validacion
 
-1. `/profesores`
-2. `/alumnos`
-3. `/practicas`
-4. AD + DHCP + GPO + cliente dominio
-5. PostgreSQL + backup/restore
+Validaciones previstas:
 
-## 7) Evidencias
+- Stacks en `CREATE_COMPLETE`.
+- Peerings activos.
+- Rutas privadas creadas.
+- Nginx activo.
+- PostgreSQL escuchando en `5432`.
+- Modulos accesibles:
+  - `/profesores/`
+  - `/alumnos/`
+  - `/practicas/`
+- S3 accesible mediante IAM Role.
 
-Completar:
+## Estado final
 
-- `documentacion/entrega-final-dt/CHECKLIST_EVIDENCIAS_DT.md`
-- `documentacion/entrega-final-dt/DRP_DT.md`
+Este runbook queda como referencia de mejora futura. La ejecucion real validada se documento y ordeno en `../../grupo-dt-CloudFormation`.
+
